@@ -112,6 +112,50 @@ namespace Oxide.Plugins
             }
         }
 
+        [Command("timedprogression.newwipe")]
+        private void NewWipe(IPlayer player, string command, string[] args)
+        {
+            if(player.IsAdmin)
+            {
+                try{
+                    timeData["currentThreshold"] = 0;
+                    SaveLoop();
+                    ResetProgressionTimer();
+                    player.Message($"Reset phase and progression timer");
+                }
+                catch{
+                    player.Message("Error handling newwipe command");
+                }
+            }
+            else
+            {
+                player.Message("This command is restricted to admins only");
+            }
+        }
+
+        [Command("timedprogression.addweek")]
+        private void AddWeek(IPlayer player, string command, string[] args)
+        {
+            if(player.IsAdmin)
+            {
+                try{
+                    wipeStart = DateTime.Today;
+                    while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
+                    wipeStart = wipeStart.AddDays(-1);
+                    while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
+                    wipeStart = wipeStart.AddHours(config.wipeStartHour);
+                    player.Message($"Added a week to the progression timer");
+                }
+                catch{
+                    player.Message("Error handling addweek command");
+                }
+            }
+            else
+            {
+                player.Message("This command is restricted to admins only");
+            }
+        }
+
         #endregion Commands
 
         #region Configuration
@@ -121,7 +165,6 @@ namespace Oxide.Plugins
             public List<long> thresholds;
             public int wipeStartDay;
             public int wipeStartHour;
-            public int wipeNumWeeks;
         }
 
         protected void LoadDefaultItemsConfig()
@@ -173,7 +216,6 @@ namespace Oxide.Plugins
             config.thresholds.Add(60 * 60 * 96); // 4 days
             config.wipeStartDay = 4; // Thursday
             config.wipeStartHour = 13; // 1PM
-            config.wipeNumWeeks = 1;
             SaveConfig();
         }
 
@@ -255,6 +297,13 @@ namespace Oxide.Plugins
 
         #endregion Oxide Hooks
 
+        private void ResetProgressionTimer()
+        {
+            wipeStart = DateTime.Today;
+            while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
+            wipeStart = wipeStart.AddHours(config.wipeStartHour);
+        }
+
         private bool CanHaveItem(ItemDefinition itemdef)
         {
             string itemCategory = itemdef.category.ToString("f");
@@ -275,7 +324,6 @@ namespace Oxide.Plugins
             {
                 int thresholdIdx = (int)items[itemdef.category.ToString("f"), name];
                 int currentThreshold = (int)timeData["currentThreshold"];
-                //Puts($"iterating items in config for category: {name}, has threshold of {thresholdIdx} compared to current threshold of {currentThreshold}");
                 if(thresholdIdx == (int)timeData["currentThreshold"])
                     itemPool.Add(name);
             }
@@ -283,7 +331,6 @@ namespace Oxide.Plugins
                 return null;
 
             int r = rnd.Next(itemPool.Count);
-            //Puts($"{itemPool.Count} items in itemPool, {r} index chosen");
             Item newItem = ItemManager.CreateByName(itemPool[r], 1);
             Puts($"Replacing {itemdef.shortname} with {newItem.info.shortname}");
             return newItem;
@@ -386,19 +433,11 @@ namespace Oxide.Plugins
         private void Init()
         {
             TimeZoneInfo.ClearCachedData();
-            wipeStart = DateTime.Today;
             config = Config.ReadObject<PluginConfig>();
-            for(var i = 0; i < config.wipeNumWeeks; i++)
-            {
-                while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
-                wipeStart.AddDays(-1);
-            }
-            wipeStart.AddDays(1);
-            wipeStart = wipeStart.AddHours(config.wipeStartHour);
-
             timeData = Interface.Oxide.DataFileSystem.GetFile("TimedProgression/timeData");
             items = Interface.Oxide.DataFileSystem.GetFile("TimedProgression/items");
             //items.Clear();
+            ResetProgressionTimer();
             if(items["Weapon"] == null)
                 LoadDefaultItemsConfig();
 
@@ -422,6 +461,13 @@ namespace Oxide.Plugins
             {
                 timeData["currentThreshold"] = (int)timeData["currentThreshold"] + 1;
                 RefreshLoot();
+                foreach (var player in BasePlayer.activePlayerList)
+                {
+                    string msg = $"ATTENTION: PHASE {(int)timeData["currentThreshold"]} HAS BEGUN";
+                    player.ChatMessage(msg);
+                    if(GUIAnnouncements != null)
+                        GUIAnnouncements?.Call("CreateAnnouncement", msg, "Purple", "Yellow", player);
+                }
             }
         }
 

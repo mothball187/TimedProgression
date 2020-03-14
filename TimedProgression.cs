@@ -121,6 +121,7 @@ namespace Oxide.Plugins
             public List<long> thresholds;
             public int wipeStartDay;
             public int wipeStartHour;
+            public int wipeNumWeeks;
         }
 
         protected void LoadDefaultItemsConfig()
@@ -387,7 +388,7 @@ namespace Oxide.Plugins
             TimeZoneInfo.ClearCachedData();
             wipeStart = DateTime.Today;
             config = Config.ReadObject<PluginConfig>();
-            for(var i = 0; i < config.wipeNumWeeks)
+            for(var i = 0; i < config.wipeNumWeeks; i++)
             {
                 while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
                 wipeStart.AddDays(-1);

@@ -32,8 +32,6 @@ The configuration file contains the following settings:
 
 `wipeStartHour` - The hour of the day your wipe period begins on your configured wipe day of the week. This value defaults to 13 (1pm).
 
-`wipeNumWeeks` - The number of weeks your wipe period lasts, defaults to 1.
-
 The `items.json` file contains the more complex details of which items are restricted and their unlock phase. Below is the default configuration.
 ```
 items["Weapon", "pistol.revolver"] = 0;
@@ -75,6 +73,24 @@ items["Tool", "explosive.timed"] = 2;
 
 For example, the thompson (`smg.thompson`) is unlocked in phase 1, which is reached after two days with the default configuration. Be sure to include phase 0 items for each category, so the plugin will know which items can be used to replace restricted items during phase 0. For a complete list of item names, see the [uMod Rust Definitions page](https://umod.org/documentation/games/rust/definitions).
 
+# Commands
+
+The only command players can run is the chat command `/checkphase`. This informs the player of the current phase. 
+
+There are several admin commands:
+`timedprogression.setthreshold <phase num> <threshold seconds>` - Set the threshold for phase `<phase num>` to `<seconds>`. 
+`timedprogression.setphase <phase num>` - Set the current phase to `<phase num>`.
+`timedprogression.setwipetime <hour of day>` - Set the hour of the day for the server's scheduled wipe time to `<hour of day>`
+`timedprogression.newwipe` - Run this command immediately after a new wipe. It resets the phase and timer for the new wipe period.
+`timedprogression.addweeks <number of weeks>` - This command is for servers with wipe schedules that last more than a week. Run this command after you have restarted the server or reloaded the plugin and are further than a week into your wipe period.
+
 # Considerations
 
 `TimedProgression` uses your server's configured timezone for determining the daily and weekly cycle start times. Be sure your server's timezone is configured how you desire. If you update your server's timezone, you can reload the plugin to have it sync with your new timezone as well.
+
+When the plugin initializes, it calculates the wipe start time by taking the time of the start of the current day and subtracting days from it until it reaches your configured wipe start day, adding your configured start hour to it. Every second it calculates the difference between the current time and the wipe start time to determine how many seconds have elapsed for the current wipe period.
+
+**Important** - if your wipe period is longer than a week and you have to restart your server after your first week has passed, you will need to run the week `timedprogression.addweeks` command afterwards to catch the progression timer up.
+
+**Important** - you must run the `timedprogression.newwipe` command shortly after starting your server for a fresh wipe in order to reset phase to `0`. Optionally, you could simply delete the `oxide/data/TimedProgression/timeData.json` file before starting your server. If you script your wipe, simply delete this file as part of your wipe routine to automate it.
+

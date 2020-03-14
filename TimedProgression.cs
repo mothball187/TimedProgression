@@ -76,7 +76,10 @@ namespace Oxide.Plugins
                 try{
                     int phase = Int32.Parse(args[0]);
                     timeData["currentThreshold"] = phase;
+                    RefreshLoot();
+                    CheckAllLoot();
                     player.Message($"Phase set to {phase}");
+                    NotifyPhaseChange();
                 }
                 catch{
                     player.Message("Error handling setphase command");
@@ -121,7 +124,10 @@ namespace Oxide.Plugins
                     timeData["currentThreshold"] = 0;
                     SaveLoop();
                     ResetProgressionTimer();
+                    RefreshLoot();
+                    CheckAllLoot();
                     player.Message($"Reset phase and progression timer");
+                    NotifyPhaseChange();
                 }
                 catch{
                     player.Message("Error handling newwipe command");
@@ -133,21 +139,18 @@ namespace Oxide.Plugins
             }
         }
 
-        [Command("timedprogression.addweek")]
-        private void AddWeek(IPlayer player, string command, string[] args)
+        [Command("timedprogression.addweeks")]
+        private void AddWeeks(IPlayer player, string command, string[] args)
         {
             if(player.IsAdmin)
             {
                 try{
-                    wipeStart = DateTime.Today;
-                    while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
-                    wipeStart = wipeStart.AddDays(-1);
-                    while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
-                    wipeStart = wipeStart.AddHours(config.wipeStartHour);
-                    player.Message($"Added a week to the progression timer");
+                    int weeks = Int32.Parse(args[0]);
+                    wipeStart.AddDays(-weeks * 7);
+                    player.Message($"Added {weeks} week to the progression timer");
                 }
                 catch{
-                    player.Message("Error handling addweek command");
+                    player.Message("Error handling addweeks command");
                 }
             }
             else
@@ -461,19 +464,35 @@ namespace Oxide.Plugins
             {
                 timeData["currentThreshold"] = (int)timeData["currentThreshold"] + 1;
                 RefreshLoot();
-                foreach (var player in BasePlayer.activePlayerList)
-                {
-                    string msg = $"ATTENTION: PHASE {(int)timeData["currentThreshold"]} HAS BEGUN";
-                    player.ChatMessage(msg);
-                    if(GUIAnnouncements != null)
-                        GUIAnnouncements?.Call("CreateAnnouncement", msg, "Purple", "Yellow", player);
-                }
+                NotifyPhaseChange();
             }
         }
 
         private void SaveLoop()
         {
             timeData.Save();
+        }
+
+        private void NotifyPhaseChange()
+        {
+            foreach (var player in BasePlayer.activePlayerList)
+            {
+                string msg = $"ATTENTION: PHASE {(int)timeData["currentThreshold"]} HAS BEGUN";
+                player.ChatMessage(msg);
+                if(GUIAnnouncements != null)
+                    GUIAnnouncements?.Call("CreateAnnouncement", msg, "Purple", "Yellow", player);
+            }
+        }
+
+        private void RefreshVendingMachines()
+        {
+            foreach(var entity in BaseNetworkable.serverEntities.ToList())
+            {
+                if (entity is NPCVendingMachine)
+                {
+                    (entity as NPCVendingMachine).InstallDefaultSellOrders();
+                }
+            }
         }
 
     }

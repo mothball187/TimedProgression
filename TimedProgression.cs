@@ -172,6 +172,7 @@ namespace Oxide.Plugins
             config.thresholds.Add(60 * 60 * 96); // 4 days
             config.wipeStartDay = 4; // Thursday
             config.wipeStartHour = 13; // 1PM
+            config.wipeNumWeeks = 1;
             SaveConfig();
         }
 
@@ -386,7 +387,12 @@ namespace Oxide.Plugins
             TimeZoneInfo.ClearCachedData();
             wipeStart = DateTime.Today;
             config = Config.ReadObject<PluginConfig>();
-            while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
+            for(var i = 0; i < config.wipeNumWeeks)
+            {
+                while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
+                wipeStart.AddDays(-1);
+            }
+            wipeStart.AddDays(1);
             wipeStart = wipeStart.AddHours(config.wipeStartHour);
 
             timeData = Interface.Oxide.DataFileSystem.GetFile("TimedProgression/timeData");

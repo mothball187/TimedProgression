@@ -78,10 +78,14 @@ For example, the thompson (`smg.thompson`) is unlocked in phase 1, which is reac
 The only command players can run is the chat command `/checkphase`. This informs the player of the current phase. 
 
 There are several admin commands:
-`timedprogression.setthreshold <phase num> <threshold seconds>` - Set the threshold for phase `<phase num>` to `<seconds>`. 
+`timedprogression.setthreshold <phase num> <threshold seconds>` - Set the threshold for phase `<phase num>` to `<seconds>`.
+
 `timedprogression.setphase <phase num>` - Set the current phase to `<phase num>`.
-`timedprogression.setwipetime <hour of day>` - Set the hour of the day for the server's scheduled wipe time to `<hour of day>`
+
+`timedprogression.setwipetime <day of week> <hour of day>` - Set the day and hour for the server's scheduled wipe time. `<day of week>` is the number of the zero-indexed day of the week, Sunday being `0`.
+
 `timedprogression.newwipe` - Run this command immediately after a new wipe. It resets the phase and timer for the new wipe period.
+
 `timedprogression.addweeks <number of weeks>` - This command is for servers with wipe schedules that last more than a week. Run this command after you have restarted the server or reloaded the plugin and are further than a week into your wipe period.
 
 # Considerations

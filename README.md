@@ -26,6 +26,7 @@ After two more days, phase 2 begins which unlocks all restricted items. At this 
 The configuration for this plugin is divided into the configuration file, which is fairly simple, and a data file named "items.json".
 
 The configuration file contains the following settings:
+
 `thresholds` - An array of integers representing the number of seconds from the start of wipe before the next phase begins. The default values are `172800` and `345600`, which are 2 days, and 4 days, respectively. This means phase 1 begins after two days from wipe, and phase 2 after 4 days from wipe. You can configure more than two thresholds to add more phases to your wipe period.
 
 `wipeStartDay` - The 0 based index of the day of the week your wipe period begins. This value defaults to 4 (Thursday).
@@ -78,6 +79,7 @@ For example, the thompson (`smg.thompson`) is unlocked in phase 1, which is reac
 The only command players can run is the chat command `/checkphase`. This informs the player of the current phase. 
 
 There are several admin commands:
+
 `timedprogression.setthreshold <phase num> <threshold seconds>` - Set the threshold for phase `<phase num>` to `<seconds>`.
 
 `timedprogression.setphase <phase num>` - Set the current phase to `<phase num>`.

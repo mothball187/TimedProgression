@@ -324,15 +324,25 @@ namespace Oxide.Plugins
         {
             List<string> itemPool = new List<string>();
             Dictionary<string, object> catItems = items[itemdef.category.ToString("f")] as Dictionary<string, object>;
-            foreach(string name in catItems.Keys)
+            int currentThreshold = (int)timeData["currentThreshold"];
+            while(currentThreshold >= 0 && itemPool.Count == 0)
             {
-                int thresholdIdx = (int)items[itemdef.category.ToString("f"), name];
-                int currentThreshold = (int)timeData["currentThreshold"];
-                if(thresholdIdx == (int)timeData["currentThreshold"])
-                    itemPool.Add(name);
+                foreach(string name in catItems.Keys)
+                {
+                    int thresholdIdx = (int)items[itemdef.category.ToString("f"), name];
+                    
+                    if(thresholdIdx == currentThreshold)
+                        itemPool.Add(name);
+                }
+
+                currentThreshold--;
             }
+
             if(itemPool.Count == 0)
+            {
+                Puts($"Couldn't find replacement for {itemdef.shortname}");
                 return null;
+            }
 
             int r = rnd.Next(itemPool.Count);
             Item newItem = ItemManager.CreateByName(itemPool[r], 1);

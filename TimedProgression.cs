@@ -78,6 +78,7 @@ namespace Oxide.Plugins
                     timeData["currentThreshold"] = phase;
                     RefreshLoot();
                     CheckAllLoot();
+                    RefreshVendingMachines();
                     player.Message($"Phase set to {phase}");
                     NotifyPhaseChange();
                 }
@@ -465,6 +466,7 @@ namespace Oxide.Plugins
                 timeData["currentThreshold"] = (int)timeData["currentThreshold"] + 1;
                 RefreshLoot();
                 NotifyPhaseChange();
+                RefreshVendingMachines();
             }
         }
 
@@ -490,7 +492,7 @@ namespace Oxide.Plugins
             {
                 if (entity is NPCVendingMachine)
                 {
-                    (entity as NPCVendingMachine).InstallDefaultSellOrders();
+                    (entity as NPCVendingMachine).InstallFromVendingOrders();
                 }
             }
         }

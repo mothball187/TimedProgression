@@ -76,7 +76,7 @@ namespace Oxide.Plugins
                 try{
                     int phase = Int32.Parse(args[0]);
                     timeData["currentThreshold"] = phase;
-                    RefreshLoot();
+                    //RefreshLoot();
                     CheckAllLoot();
                     RefreshVendingMachines();
                     player.Message($"Phase set to {phase}");
@@ -125,7 +125,7 @@ namespace Oxide.Plugins
                     timeData["currentThreshold"] = 0;
                     SaveLoop();
                     ResetProgressionTimer();
-                    RefreshLoot();
+                    //RefreshLoot();
                     CheckAllLoot();
                     player.Message($"Reset phase and progression timer");
                     NotifyPhaseChange();
@@ -441,7 +441,11 @@ namespace Oxide.Plugins
         private void RefreshLoot()
         {
             server.Command("del assets/bundled/prefabs/radtown/");
-            server.Command("spawn.fill_groups");
+            timer.Once(5f, () =>
+            {
+                server.Command("spawn.fill_groups"); // this also respawns bad guys which is bad
+            });
+            
         }
 
         private void Init()
@@ -458,7 +462,7 @@ namespace Oxide.Plugins
             if(timeData["currentThreshold"] == null)
                 timeData["currentThreshold"] = 0;
 
-            RefreshLoot();
+            //RefreshLoot();
             CheckAllLoot();
             timer.Every(1f, UpdateLoop);
             timer.Every(10f, SaveLoop);
@@ -471,10 +475,11 @@ namespace Oxide.Plugins
                 return;
 
             TimeSpan elapsed = DateTime.Now - wipeStart;
+            //Puts($"{elapsed} seconds since wipe");
             if(elapsed.TotalSeconds >= config.thresholds[(int)timeData["currentThreshold"]])
             {
                 timeData["currentThreshold"] = (int)timeData["currentThreshold"] + 1;
-                RefreshLoot();
+                //RefreshLoot();
                 NotifyPhaseChange();
                 RefreshVendingMachines();
             }

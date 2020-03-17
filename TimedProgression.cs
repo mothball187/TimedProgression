@@ -43,7 +43,17 @@ namespace Oxide.Plugins
         [Command("checkphase")]
         private void CheckPhase(IPlayer player, string command, string[] args)
         {
-            player.Message($"Current phase: {(int)timeData["currentThreshold"]}");
+            int ct = (int)timeData["currentThreshold"];
+            player.Message($"Current phase: {ct}");
+            if(ct < config.thresholds.Count)
+            {
+                DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
+                TimeSpan elapsed = DateTime.Now - wt;
+                string timeLeft = FormatTimeSpan(config.thresholds[ct] - (long)elapsed.TotalSeconds);
+                player.Message($"Time left in this phase: {timeLeft}");
+            }
+            
+            
         }
 
         [Command("timedprogression.setthreshold")]
@@ -99,12 +109,16 @@ namespace Oxide.Plugins
             if(player.IsAdmin)
             {
                 try{
-                    int day = Int32.Parse(args[0]);
-                    config.wipeStartDay = day;
-                    int hour = Int32.Parse(args[1]);
-                    config.wipeStartHour = hour;
-                    SaveConfig();
-                    player.Message($"Wipe day set to day {day} and hour {hour}");
+                    string dateString = args[0];
+                    DateTime dt;
+                    if(DateTime.TryParse(dateString, out dt))
+                    {
+                        player.Message($"Wipe time set to {dt}");
+                        timeData["wipeTime"] = dateString;
+                        timeData.Save();
+                    }
+                    else
+                        player.Message($"Failed to parse supplied date string {dateString}");
                 }
                 catch{
                     player.Message("Error handling setwipetime command");
@@ -116,49 +130,7 @@ namespace Oxide.Plugins
             }
         }
 
-        [Command("timedprogression.newwipe")]
-        private void NewWipe(IPlayer player, string command, string[] args)
-        {
-            if(player.IsAdmin)
-            {
-                try{
-                    timeData["currentThreshold"] = 0;
-                    SaveLoop();
-                    ResetProgressionTimer();
-                    //RefreshLoot();
-                    //CheckAllLoot();
-                    player.Message($"Reset phase and progression timer");
-                    NotifyPhaseChange();
-                }
-                catch{
-                    player.Message("Error handling newwipe command");
-                }
-            }
-            else
-            {
-                player.Message("This command is restricted to admins only");
-            }
-        }
 
-        [Command("timedprogression.addweeks")]
-        private void AddWeeks(IPlayer player, string command, string[] args)
-        {
-            if(player.IsAdmin)
-            {
-                try{
-                    int weeks = Int32.Parse(args[0]);
-                    wipeStart.AddDays(-weeks * 7);
-                    player.Message($"Added {weeks} week to the progression timer");
-                }
-                catch{
-                    player.Message("Error handling addweeks command");
-                }
-            }
-            else
-            {
-                player.Message("This command is restricted to admins only");
-            }
-        }
 
         #endregion Commands
 
@@ -167,8 +139,6 @@ namespace Oxide.Plugins
         class PluginConfig
         {
             public List<long> thresholds;
-            public int wipeStartDay;
-            public int wipeStartHour;
         }
 
         protected void LoadDefaultItemsConfig()
@@ -218,8 +188,6 @@ namespace Oxide.Plugins
             config.thresholds = new List<long>();
             config.thresholds.Add(60 * 60 * 48); // 2 days
             config.thresholds.Add(60 * 60 * 96); // 4 days
-            config.wipeStartDay = 4; // Thursday
-            config.wipeStartHour = 13; // 1PM
             SaveConfig();
         }
 
@@ -247,6 +215,13 @@ namespace Oxide.Plugins
             }
         }
         */
+
+        private void OnNewSave(string filename)
+        {
+            timeData["wipeTime"] = DateTime.Now.ToString();
+            timeData["currentThreshold"] = 0;
+            timeData.Save();
+        }
 
         private void OnLootEntity(BasePlayer player, BaseEntity entity)
         {
@@ -304,11 +279,15 @@ namespace Oxide.Plugins
 
         #endregion Oxide Hooks
 
-        private void ResetProgressionTimer()
+        private string FormatTimeSpan(long seconds)
         {
-            wipeStart = DateTime.Today;
-            while(wipeStart.DayOfWeek != (System.DayOfWeek)config.wipeStartDay) wipeStart = wipeStart.AddDays(-1);
-            wipeStart = wipeStart.AddHours(config.wipeStartHour);
+            TimeSpan t = TimeSpan.FromSeconds( seconds );
+            string answer = string.Format("{0:D2}d:{1:D2}h:{2:D2}m:{3:D2}s",
+                t.Days, 
+                t.Hours, 
+                t.Minutes, 
+                t.Seconds);
+            return answer;
         }
 
         private bool CanHaveItem(ItemDefinition itemdef)
@@ -458,17 +437,21 @@ namespace Oxide.Plugins
             timeData = Interface.Oxide.DataFileSystem.GetFile("TimedProgression/timeData");
             items = Interface.Oxide.DataFileSystem.GetFile("TimedProgression/items");
             //items.Clear();
-            ResetProgressionTimer();
             if(items["Weapon"] == null)
                 LoadDefaultItemsConfig();
 
             if(timeData["currentThreshold"] == null)
                 timeData["currentThreshold"] = 0;
 
+            if(timeData["wipeTime"] == null)
+                timeData["wipeTime"] = DateTime.Now.ToString();
+
             //RefreshLoot();
             //CheckAllLoot();
             timer.Every(1f, UpdateLoop);
             timer.Every(10f, SaveLoop);
+
+            RefreshVendingMachines();
             return;
         }
 
@@ -477,7 +460,7 @@ namespace Oxide.Plugins
             if((int)timeData["currentThreshold"] == config.thresholds.Count)
                 return;
 
-            TimeSpan elapsed = DateTime.Now - wipeStart;
+            TimeSpan elapsed = DateTime.Now - DateTime.Parse((string)timeData["wipeTime"]);
             //Puts($"{elapsed} seconds since wipe");
             if(elapsed.TotalSeconds >= config.thresholds[(int)timeData["currentThreshold"]])
             {

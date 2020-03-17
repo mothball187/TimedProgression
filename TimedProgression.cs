@@ -77,7 +77,7 @@ namespace Oxide.Plugins
                     int phase = Int32.Parse(args[0]);
                     timeData["currentThreshold"] = phase;
                     //RefreshLoot();
-                    CheckAllLoot();
+                    //CheckAllLoot();
                     RefreshVendingMachines();
                     player.Message($"Phase set to {phase}");
                     NotifyPhaseChange();
@@ -126,7 +126,7 @@ namespace Oxide.Plugins
                     SaveLoop();
                     ResetProgressionTimer();
                     //RefreshLoot();
-                    CheckAllLoot();
+                    //CheckAllLoot();
                     player.Message($"Reset phase and progression timer");
                     NotifyPhaseChange();
                 }
@@ -232,6 +232,7 @@ namespace Oxide.Plugins
 
         #region Oxide Hooks
 
+        /*
         private void OnEntityKill(BaseNetworkable entity)
         {
             BaseEntity baseEnt = entity as BaseEntity;
@@ -245,17 +246,19 @@ namespace Oxide.Plugins
                 UpdateContainer(entity.GetComponent<StorageContainer>());
             }
         }
+        */
 
         private void OnLootEntity(BasePlayer player, BaseEntity entity)
         {
             UpdateContainer(entity);
         }
 
-
+        /*
         private object OnLootSpawn(LootContainer container)
         {
             return UpdateContainer(container);
         }
+        */
 
         private void NotifyPlayer(ItemDefinition itemdef, BasePlayer player)
         {
@@ -463,7 +466,7 @@ namespace Oxide.Plugins
                 timeData["currentThreshold"] = 0;
 
             //RefreshLoot();
-            CheckAllLoot();
+            //CheckAllLoot();
             timer.Every(1f, UpdateLoop);
             timer.Every(10f, SaveLoop);
             return;
@@ -507,8 +510,25 @@ namespace Oxide.Plugins
             {
                 if (entity is NPCVendingMachine)
                 {
-                    (entity as NPCVendingMachine).InstallFromVendingOrders();
+                    MyInstallFromVendingOrders((entity as NPCVendingMachine));
                 }
+            }
+        }
+
+        private void MyInstallFromVendingOrders(NPCVendingMachine machine)
+        {
+            if(machine.vendingOrders == null)
+                return;
+
+            machine.ClearSellOrders();
+            machine.inventory.Clear();
+            ItemManager.DoRemoves();
+            foreach(NPCVendingOrder.Entry entry in machine.vendingOrders.orders)
+            {
+                ItemDefinition itemDef = ItemManager.FindItemDefinition(entry.sellItem.itemid);
+                if(CanHaveItem(itemDef))
+                    machine.AddItemForSale(entry.sellItem.itemid, entry.sellItemAmount, entry.currencyItem.itemid, 
+                                           entry.currencyAmount, machine.GetBPState(entry.sellItemAsBP, entry.currencyAsBP));
             }
         }
 

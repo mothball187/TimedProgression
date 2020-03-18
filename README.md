@@ -88,3 +88,13 @@ There are several admin commands:
 `TimedProgression` uses your server's configured timezone for determining the daily and weekly cycle start times. Be sure your server's timezone is configured how you desire. If you update your server's timezone, you can reload the plugin to have it sync with your new timezone as well.
 
 When a new map is discovered during server intitialization, the current time is saved as the wipe start time. Every second it calculates the difference between the current time and the wipe start time to determine how many seconds have elapsed for the current wipe period. If, for any reason, you wish to change the wipe start time, you can use `timedprogression.setwipetime` command.
+
+# Server Owners
+
+Are you using, or planning to use, this plugin? Please let us know! We are interested in hearing about servers using our plugins and may even advertise them here if you are interested.
+
+# Servers 
+
+Below are a list of servers using our plugin.
+
+**Working Man's Rust** - `connect 3.20.202.204:28015` - [Discord Invite](https://discord.gg/Tde6MrG)

@@ -56,6 +56,36 @@ namespace Oxide.Plugins
             
         }
 
+        [Command("listitems")]
+        private void ListItems(IPlayer player, string command, string[] args)
+        {
+            DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
+            int ct = (int)timeData["currentThreshold"];
+            foreach (ItemCategory category in (ItemCategory[]) Enum.GetValues(typeof(ItemCategory)))
+            {
+                if(items[category.ToString("f")] == null)
+                    continue;
+
+                Dictionary<string, object> catItems = items[category.ToString("f")] as Dictionary<string, object>;
+                foreach(string name in catItems.Keys)
+                {
+                    int phase = (int)catItems[name];
+                    if(phase < 1)
+                        continue;
+
+                    ItemDefinition itemdef = ItemManager.FindItemDefinition(name);
+                    string fullname = itemdef.displayName.english;
+                    if(phase == ct + 1)
+                    {
+                        TimeSpan elapsed = DateTime.Now - wt;
+                        string timeLeft = FormatTimeSpan(config.thresholds[phase - 1] - (long)elapsed.TotalSeconds);
+
+                        player.Message($"{fullname} unlocks in phase {phase}, in {timeLeft}");
+                    }
+                }
+            } 
+        }
+
         [Command("timedprogression.setthreshold")]
         private void SetThreshold(IPlayer player, string command, string[] args)
         {

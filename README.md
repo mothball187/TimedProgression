@@ -70,11 +70,12 @@ items["Tool", "explosive.timed"] = 2;
 
 For example, the thompson (`smg.thompson`) is unlocked in phase 1, which is reached after two days with the default configuration. Be sure to include phase 0 items for each category, so the plugin will know which items can be used to replace restricted items during phase 0. For a complete list of item names, see the [uMod Rust Definitions page](https://umod.org/documentation/games/rust/definitions).
 
-# Commands
+# Player Commands
 
-The only command players can run is the chat command `/checkphase`. This informs the player of the current phase. 
+`/checkphase` - Informs the player of the current phase and time until next phase begins.
+`/listitems` - Shows which items will unlock next phase.
 
-There are several admin commands:
+# Admin Commands
 
 `timedprogression.setthreshold <phase num> <threshold seconds>` - Set the threshold for phase `<phase num>` to `<seconds>`.
 

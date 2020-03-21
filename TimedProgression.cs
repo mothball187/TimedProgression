@@ -61,6 +61,7 @@ namespace Oxide.Plugins
         {
             DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
             int ct = (int)timeData["currentThreshold"];
+            Dictionary<int, string> phaseItems = new Dictionary<int, string>();
             foreach (ItemCategory category in (ItemCategory[]) Enum.GetValues(typeof(ItemCategory)))
             {
                 if(items[category.ToString("f")] == null)
@@ -75,15 +76,27 @@ namespace Oxide.Plugins
 
                     ItemDefinition itemdef = ItemManager.FindItemDefinition(name);
                     string fullname = itemdef.displayName.english;
-                    if(phase == ct + 1)
+                    string phaseString = "";
+                    if(phaseItems.TryGetValue(phase, out phaseString))
                     {
-                        TimeSpan elapsed = DateTime.Now - wt;
-                        string timeLeft = FormatTimeSpan(config.thresholds[phase - 1] - (long)elapsed.TotalSeconds);
-
-                        player.Message($"{fullname} unlocks in phase {phase}, in {timeLeft}");
+                        phaseString += $", {fullname}";
+                        phaseItems[phase] = phaseString;
                     }
+                    else
+                        phaseItems[phase] = $"{fullname}";
                 }
             } 
+
+            foreach(int phase in phaseItems.Keys)
+            {
+                if(ct < phase)
+                {
+                    TimeSpan elapsed = DateTime.Now - wt;
+                    string timeLeft = FormatTimeSpan(config.thresholds[phase - 1] - (long)elapsed.TotalSeconds);
+
+                    player.Message($"{phaseItems[phase]} unlocks in phase {phase}, in {timeLeft}");
+                }
+            }
         }
 
         [Command("timedprogression.setthreshold")]

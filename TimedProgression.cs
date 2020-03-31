@@ -21,12 +21,11 @@ using Oxide.Core.Libraries.Covalence;
 
 namespace Oxide.Plugins
 {
-    [Info("Timed Progression", "mothball187", "0.0.1")]
+    [Info("Timed Progression", "mothball187", "0.0.3")]
     [Description("Restricts crafting and looting of items based on configurable tiers, unlocked over configurable time periods")]
     class TimedProgression : CovalencePlugin
     {
-        [PluginReference]
-        private Plugin GUIAnnouncements;
+        [PluginReference] private Plugin DiscordCore, GUIAnnouncements;
 
         #region Fields
 
@@ -43,13 +42,13 @@ namespace Oxide.Plugins
         [Command("checkphase")]
         private void CheckPhase(IPlayer player, string command, string[] args)
         {
-            int ct = (int)timeData["currentThreshold"];
-            player.Message($"Current phase: {ct}");
-            if(ct < config.thresholds.Count)
+            int cp = (int)timeData["currentPhase"];
+            player.Message($"Current phase: {cp}");
+            if(cp - 1 < config.thresholds.Count)
             {
                 DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
                 TimeSpan elapsed = DateTime.Now - wt;
-                string timeLeft = FormatTimeSpan(config.thresholds[ct] - (long)elapsed.TotalSeconds);
+                string timeLeft = FormatTimeSpan(config.thresholds[cp - 1] - (long)elapsed.TotalSeconds);
                 player.Message($"Time left in this phase: {timeLeft}");
             }
             
@@ -57,46 +56,9 @@ namespace Oxide.Plugins
         }
 
         [Command("listitems")]
-        private void ListItems(IPlayer player, string command, string[] args)
+        private void ListItemsCmd(IPlayer player, string command, string[] args)
         {
-            DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
-            int ct = (int)timeData["currentThreshold"];
-            Dictionary<int, string> phaseItems = new Dictionary<int, string>();
-            foreach (ItemCategory category in (ItemCategory[]) Enum.GetValues(typeof(ItemCategory)))
-            {
-                if(items[category.ToString("f")] == null)
-                    continue;
-
-                Dictionary<string, object> catItems = items[category.ToString("f")] as Dictionary<string, object>;
-                foreach(string name in catItems.Keys)
-                {
-                    int phase = (int)catItems[name];
-                    if(phase < 1)
-                        continue;
-
-                    ItemDefinition itemdef = ItemManager.FindItemDefinition(name);
-                    string fullname = itemdef.displayName.english;
-                    string phaseString = "";
-                    if(phaseItems.TryGetValue(phase, out phaseString))
-                    {
-                        phaseString += $", {fullname}";
-                        phaseItems[phase] = phaseString;
-                    }
-                    else
-                        phaseItems[phase] = $"{fullname}";
-                }
-            } 
-
-            foreach(int phase in phaseItems.Keys)
-            {
-                if(ct < phase)
-                {
-                    TimeSpan elapsed = DateTime.Now - wt;
-                    string timeLeft = FormatTimeSpan(config.thresholds[phase - 1] - (long)elapsed.TotalSeconds);
-
-                    player.Message($"{phaseItems[phase]} unlocks in phase {phase}, in {timeLeft}");
-                }
-            }
+            ListItems(player=player);
         }
 
         [Command("timedprogression.setthreshold")]
@@ -105,11 +67,11 @@ namespace Oxide.Plugins
             if(player.IsAdmin)
             {
                 try{
-                    int idx = Int32.Parse(args[0]);
+                    int phase = Int32.Parse(args[0]);
                     int seconds = Int32.Parse(args[1]);
-                    config.thresholds[idx] = seconds;
+                    config.thresholds[phase - 1] = seconds;
                     SaveConfig();
-                    player.Message($"Threshold {idx} set to {seconds}");
+                    player.Message($"Threshold {phase} set to {seconds}");
                 }
                 catch{
                     player.Message("Error handling setthreshold command");
@@ -128,7 +90,8 @@ namespace Oxide.Plugins
             {
                 try{
                     int phase = Int32.Parse(args[0]);
-                    timeData["currentThreshold"] = phase;
+                    timeData["currentPhase"] = phase;
+                    timeData.Save();
                     //RefreshLoot();
                     //CheckAllLoot();
                     RefreshVendingMachines();
@@ -186,41 +149,45 @@ namespace Oxide.Plugins
 
         protected void LoadDefaultItemsConfig()
         {
-            items["Weapon", "pistol.revolver"] = 0;
-            items["Weapon", "shotgun.double"] = 0;
-            items["Weapon", "pistol.m92"] = 2;
-            items["Weapon", "pistol.python"] = 1;
-            items["Weapon", "pistol.semiauto"] = 1;
-            items["Weapon", "rifle.ak"] = 2;
-            items["Weapon", "rifle.bolt"] = 2;
-            items["Weapon", "rifle.l96"] = 2;
-            items["Weapon", "rifle.lr300"] = 2;
-            items["Weapon", "rifle.m39"] = 2;
-            items["Weapon", "rifle.semiauto"] = 1;
-            items["Weapon", "shotgun.pump"] = 1;
-            items["Weapon", "shotgun.spas12"] = 2;
-            items["Weapon", "smg.2"] = 1;
-            items["Weapon", "smg.mp5"] = 2;
-            items["Weapon", "smg.thompson"] = 1;
-            items["Weapon", "lmg.m249"] = 2;
+            items["Weapon", "pistol.revolver"] = 1;
+            items["Weapon", "shotgun.double"] = 1;
+            items["Weapon", "pistol.m92"] = 3;
+            items["Weapon", "pistol.python"] = 2;
+            items["Weapon", "pistol.semiauto"] = 2;
+            items["Weapon", "rifle.ak"] = 3;
+            items["Weapon", "rifle.bolt"] = 3;
+            items["Weapon", "rifle.l96"] = 3;
+            items["Weapon", "rifle.lr300"] = 3;
+            items["Weapon", "rifle.m39"] = 3;
+            items["Weapon", "rifle.semiauto"] = 2;
+            items["Weapon", "shotgun.pump"] = 2;
+            items["Weapon", "shotgun.spas12"] = 3;
+            items["Weapon", "smg.2"] = 2;
+            items["Weapon", "smg.mp5"] = 3;
+            items["Weapon", "smg.thompson"] = 2;
+            items["Weapon", "lmg.m249"] = 3;
             items["Weapon", "rocket.launcher"] = 2;
             items["Weapon", "multiplegrenadelauncher"] = 2;
 
-            items["Attire", "wood.armor.jacket"] = 0;
-            items["Attire", "wood.armor.pants"] = 0;
-            items["Attire", "wood.armor.helmet"] = 0;
-            items["Attire", "roadsign.gloves"] = 1;
-            items["Attire", "roadsign.jacket"] = 1;
-            items["Attire", "coffeecan.helmet"] = 1;
-            items["Attire", "roadsign.kilt"] = 1;
-            items["Attire", "metal.facemask"] = 2;
-            items["Attire", "metal.plate.torso"] = 2;
+            items["Attire", "wood.armor.jacket"] = 1;
+            items["Attire", "wood.armor.pants"] = 1;
+            items["Attire", "wood.armor.helmet"] = 1;
+            items["Attire", "roadsign.gloves"] = 2;
+            items["Attire", "roadsign.jacket"] = 2;
+            items["Attire", "coffeecan.helmet"] = 2;
+            items["Attire", "roadsign.kilt"] = 2;
+            items["Attire", "metal.facemask"] = 3;
+            items["Attire", "metal.plate.torso"] = 3;
 
-            items["Items", "workbench2"] = 1;
-            items["Items", "workbench3"] = 2;
+            items["Items", "workbench2"] = 2;
+            items["Items", "workbench3"] = 3;
 
-            items["Tool", "explosive.satchel"] = 0;
-            items["Tool", "explosive.timed"] = 2;
+            items["Tool", "explosive.satchel"] = 1;
+            items["Tool", "explosive.timed"] = 3;
+
+            items["HeavyAmmo", "ammo.rocket.hv"] = 1;
+            items["HeavyAmmo", "ammo.rocket.basic"] = 3;
+            items["HeavyAmmo", "ammo.grenadelauncher.he"] = 3;
 
             items.Save();
         }
@@ -262,7 +229,7 @@ namespace Oxide.Plugins
         private void OnNewSave(string filename)
         {
             timeData["wipeTime"] = DateTime.Now.ToString();
-            timeData["currentThreshold"] = 0;
+            timeData["currentPhase"] = 1;
             timeData.Save();
         }
 
@@ -277,6 +244,7 @@ namespace Oxide.Plugins
             return UpdateContainer(container);
         }
         */
+        
 
         private void NotifyPlayer(ItemDefinition itemdef, BasePlayer player)
         {
@@ -320,7 +288,110 @@ namespace Oxide.Plugins
             return;
         }
 
+        private void OnServerInitialized()
+        {
+            if(DiscordCore != null)
+                OnDiscordCoreReady();
+        }
+
         #endregion Oxide Hooks
+
+        private void ListItems(IPlayer player=null, string channelId=null)
+        {
+            DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
+            int cp = (int)timeData["currentPhase"];
+            Dictionary<int, string> phaseItems = new Dictionary<int, string>();
+            foreach (ItemCategory category in (ItemCategory[]) Enum.GetValues(typeof(ItemCategory)))
+            {
+                if(items[category.ToString("f")] == null)
+                    continue;
+
+                Dictionary<string, object> catItems = items[category.ToString("f")] as Dictionary<string, object>;
+                foreach(string name in catItems.Keys)
+                {
+                    int phase = (int)catItems[name];
+                    if(phase < 2)
+                        continue;
+
+                    ItemDefinition itemdef = ItemManager.FindItemDefinition(name);
+                    string fullname = itemdef.displayName.english;
+                    string phaseString = "";
+                    if(phaseItems.TryGetValue(phase, out phaseString))
+                    {
+                        phaseString += $", {fullname}";
+                        phaseItems[phase] = phaseString;
+                    }
+                    else
+                        phaseItems[phase] = $"{fullname}";
+                }
+            }
+
+            if(items["HeavyAmmo"] != null)
+            {
+                 Dictionary<string, object> catItems = items["HeavyAmmo"] as Dictionary<string, object>;
+                foreach(string name in catItems.Keys)
+                {
+                    int phase = (int)catItems[name];
+                    if(phase < 2)
+                        continue;
+
+                    ItemDefinition itemdef = ItemManager.FindItemDefinition(name);
+                    string fullname = itemdef.displayName.english;
+                    string phaseString = "";
+                    if(phaseItems.TryGetValue(phase, out phaseString))
+                    {
+                        phaseString += $", {fullname}";
+                        phaseItems[phase] = phaseString;
+                    }
+                    else
+                        phaseItems[phase] = $"{fullname}";
+                }
+            } 
+
+            bool messageSent = false;
+            foreach(int phase in phaseItems.Keys)
+            {
+                if(cp < phase)
+                {
+                    TimeSpan elapsed = DateTime.Now - wt;
+                    string timeLeft = FormatTimeSpan(config.thresholds[phase - 2] - (long)elapsed.TotalSeconds);
+                    if(player != null)
+                        player.Message($"{phaseItems[phase]} unlocks in phase {phase}, in {timeLeft}");
+                    else if(DiscordCore != null && channelId != null)
+                        SendMessage(channelId, $"{phaseItems[phase]} unlocks in phase {phase}, in {timeLeft}");
+                    messageSent = true;
+                }
+            }
+
+            if(!messageSent)
+            {
+                if(player != null)
+                    player.Message("All items unlocked!");
+                else if(DiscordCore != null && channelId != null)
+                    SendMessage(channelId, "All items unlocked!");
+            }
+        }
+
+        private void SendMessage(string channelId, string message)
+        {
+            DiscordCore.Call("SendMessageToChannel", channelId, $"{message}");
+        }
+
+        private object HandleListItems(IPlayer player, string channelId, string cmd, string[] args)
+        {
+            ListItems(player=null, channelId=channelId);
+            return null;
+        }
+
+        private void OnDiscordCoreReady()
+        {
+            if (!(DiscordCore?.Call<bool>("IsReady") ?? false))
+            {
+                return;
+            }
+
+            DiscordCore.Call("RegisterCommand", "listitems", this, new Func<IPlayer, string, string, string[], object>(HandleListItems), "Show next items to unlock", null, true);
+        }
 
         private string FormatTimeSpan(long seconds)
         {
@@ -335,32 +406,43 @@ namespace Oxide.Plugins
 
         private bool CanHaveItem(ItemDefinition itemdef)
         {
-            string itemCategory = itemdef.category.ToString("f");
+            string itemCategory;
+            if(itemdef.category.ToString("f").Equals("Ammunition") && (itemdef.shortname.Contains("rocket") || itemdef.shortname.Contains("grenade")))
+                itemCategory = "HeavyAmmo";
+            else
+                itemCategory = itemdef.category.ToString("f");
+
             //Puts($"{itemdef.shortname} is of the {itemCategory} category");
             if(items[itemCategory, itemdef.shortname] != null)
             {
-                if((int)timeData["currentThreshold"] < (int)items[itemCategory, itemdef.shortname])
+                if((int)timeData["currentPhase"] < (int)items[itemCategory, itemdef.shortname])
                     return false;
             }
             return true;
         }
 
-        private Item ReplaceItem(ItemDefinition itemdef)
+        private Item ReplaceItem(ItemDefinition itemdef, int amount)
         {
             List<string> itemPool = new List<string>();
-            Dictionary<string, object> catItems = items[itemdef.category.ToString("f")] as Dictionary<string, object>;
-            int currentThreshold = (int)timeData["currentThreshold"];
-            while(currentThreshold >= 0 && itemPool.Count == 0)
+            string cat;
+            if(itemdef.category.ToString("f").Equals("Ammunition") && (itemdef.shortname.Contains("rocket") || itemdef.shortname.Contains("grenade")))
+                cat = "HeavyAmmo";
+            else
+                cat = itemdef.category.ToString("f");
+
+            Dictionary<string, object> catItems = items[cat] as Dictionary<string, object>;
+            int currentPhase = (int)timeData["currentPhase"];
+            while(currentPhase >= 1 && itemPool.Count == 0)
             {
                 foreach(string name in catItems.Keys)
                 {
-                    int thresholdIdx = (int)items[itemdef.category.ToString("f"), name];
+                    int curItemPhase = (int)items[cat, name];
                     
-                    if(thresholdIdx == currentThreshold)
+                    if(curItemPhase == currentPhase)
                         itemPool.Add(name);
                 }
 
-                currentThreshold--;
+                currentPhase--;
             }
 
             if(itemPool.Count == 0)
@@ -370,7 +452,7 @@ namespace Oxide.Plugins
             }
 
             int r = rnd.Next(itemPool.Count);
-            Item newItem = ItemManager.CreateByName(itemPool[r], 1);
+            Item newItem = ItemManager.CreateByName(itemPool[r], amount);
             Puts($"Replacing {itemdef.shortname} with {newItem.info.shortname}");
             return newItem;
         }
@@ -416,7 +498,7 @@ namespace Oxide.Plugins
             {
                 if(!CanHaveItem(item.info))
                 {
-                    Item itemToAdd = ReplaceItem(item.info);
+                    Item itemToAdd = ReplaceItem(item.info, item.amount);
                     if(itemToAdd != null)
                         itemsToAdd.Add(itemToAdd);
 
@@ -473,6 +555,23 @@ namespace Oxide.Plugins
             
         }
 
+        // in case the user puts rockets in the Ammunition category
+        private void FixHeavyAmmoCategory()
+        {
+            if(items["Ammunition"] == null)
+                return;
+
+            Dictionary<string, object> ammoItems = items["Ammunition"] as Dictionary<string, object>;
+            foreach(string shortname in ammoItems.Keys)
+            {
+                if(shortname.Contains("rocket"))
+                {
+                    items["HeavyAmmo", shortname] = items["Ammunition", shortname];
+                }
+            }
+            items.Save();
+        }
+
         private void Init()
         {
             TimeZoneInfo.ClearCachedData();
@@ -483,8 +582,10 @@ namespace Oxide.Plugins
             if(items["Weapon"] == null)
                 LoadDefaultItemsConfig();
 
-            if(timeData["currentThreshold"] == null)
-                timeData["currentThreshold"] = 0;
+            FixHeavyAmmoCategory();
+
+            if(timeData["currentPhase"] == null)
+                timeData["currentPhase"] = 1;
 
             if(timeData["wipeTime"] == null)
                 timeData["wipeTime"] = DateTime.Now.ToString();
@@ -500,14 +601,14 @@ namespace Oxide.Plugins
 
         private void UpdateLoop()
         {
-            if((int)timeData["currentThreshold"] == config.thresholds.Count)
+            if((int)timeData["currentPhase"] - 1 == config.thresholds.Count)
                 return;
 
             TimeSpan elapsed = DateTime.Now - DateTime.Parse((string)timeData["wipeTime"]);
             //Puts($"{elapsed} seconds since wipe");
-            if(elapsed.TotalSeconds >= config.thresholds[(int)timeData["currentThreshold"]])
+            if(elapsed.TotalSeconds >= config.thresholds[(int)timeData["currentPhase"] - 1])
             {
-                timeData["currentThreshold"] = (int)timeData["currentThreshold"] + 1;
+                timeData["currentPhase"] = (int)timeData["currentPhase"] + 1;
                 //RefreshLoot();
                 NotifyPhaseChange();
                 RefreshVendingMachines();
@@ -521,13 +622,16 @@ namespace Oxide.Plugins
 
         private void NotifyPhaseChange()
         {
+            string msg = $"ATTENTION: PHASE {(int)timeData["currentPhase"]} HAS BEGUN";
             foreach (var player in BasePlayer.activePlayerList)
             {
-                string msg = $"ATTENTION: PHASE {(int)timeData["currentThreshold"]} HAS BEGUN";
                 player.ChatMessage(msg);
                 if(GUIAnnouncements != null)
                     GUIAnnouncements?.Call("CreateAnnouncement", msg, "Purple", "Yellow", player);
             }
+
+            if(DiscordCore != null)
+                SendMessage("bots", msg);
         }
 
         private void RefreshVendingMachines()

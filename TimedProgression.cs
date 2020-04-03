@@ -42,17 +42,7 @@ namespace Oxide.Plugins
         [Command("checkphase")]
         private void CheckPhase(IPlayer player, string command, string[] args)
         {
-            int cp = (int)timeData["currentPhase"];
-            player.Message($"Current phase: {cp}");
-            if(cp - 1 < config.thresholds.Count)
-            {
-                DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
-                TimeSpan elapsed = DateTime.Now - wt;
-                string timeLeft = FormatTimeSpan(config.thresholds[cp - 1] - (long)elapsed.TotalSeconds);
-                player.Message($"Time left in this phase: {timeLeft}");
-            }
-            
-            
+            NotifyPhaseInfo(player);
         }
 
         [Command("listitems")]
@@ -254,7 +244,7 @@ namespace Oxide.Plugins
                 GUIAnnouncements?.Call("CreateAnnouncement", msg, "Purple", "Yellow", player);
         }
 
-        private bool CanCraft(ItemCrafter itemCrafter, ItemBlueprint bp, int amount)
+        private object CanCraft(ItemCrafter itemCrafter, ItemBlueprint bp, int amount)
         {
             if(!CanHaveItem(bp.targetItem))
             {
@@ -262,7 +252,20 @@ namespace Oxide.Plugins
                 return false;
             }
 
-            return true;
+            return null;
+        }
+
+        private void NotifyPhaseInfo(IPlayer player)
+        {
+            int cp = (int)timeData["currentPhase"];
+            player.Message($"Current phase: {cp}");
+            if(cp - 1 < config.thresholds.Count)
+            {
+                DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
+                TimeSpan elapsed = DateTime.Now - wt;
+                string timeLeft = FormatTimeSpan(config.thresholds[cp - 1] - (long)elapsed.TotalSeconds);
+                player.Message($"Time left in this phase: {timeLeft}");
+            }
         }
 
         private object OnVendingTransaction(VendingMachine machine, BasePlayer buyer, int sellOrderId, int numberOfTransactions)
@@ -281,6 +284,11 @@ namespace Oxide.Plugins
             }
 
             return null;
+        }
+
+        private void OnPlayerConnected(BasePlayer player)
+        {
+            NotifyPhaseInfo(player.IPlayer);
         }
 
         private void Unload()

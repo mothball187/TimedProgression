@@ -110,4 +110,4 @@ Are you using, or planning to use, this plugin? Please let us know! We are inter
 
 Below are a list of servers using our plugin.
 
-**Working Man's Rust** - `connect 3.20.202.204:28015` - [Discord Invite](https://discord.gg/Tde6MrG)
+**Working Man's Rust** - `connect 3.20.202.204:28015` - [Discord Invite](http://d.pilate.io/)

@@ -27,7 +27,9 @@ The configuration for this plugin is divided into the configuration file, which 
 
 The configuration file contains the following settings:
 
-`thresholds` - An array of integers representing the number of seconds from the start of wipe before the next phase begins. The default values are `172800` and `345600`, which are 2 days, and 4 days, respectively. This means phase 2 begins after two days from wipe, and phase 3 after 4 days from wipe. You can configure more than two thresholds to add more phases to your wipe period.
+`thresholds` - An array of integers representing the number of minutes from the start of wipe before the next phase begins. The default values are `2880` and `5760`, which are 2 days, and 4 days, respectively. This means phase 2 begins after two days from wipe, and phase 3 after 4 days from wipe. You can configure more than two thresholds to add more phases to your wipe period.
+
+`botChannel` - The name of your Discord channel for the bot to listen and chat in, defaults to "bots" (requires [Discord Core](https://umod.org/plugins/discord-core)).
 
 The `items.json` file contains the more complex details of which items are restricted and their unlock phase. Below is the default configuration.
 ```
@@ -84,7 +86,7 @@ For example, the thompson (`smg.thompson`) is unlocked in phase 2, which is reac
 
 # Admin Commands
 
-`timedprogression.setthreshold <phase num> <threshold seconds>` - Set the threshold for phase `<phase num>` to `<seconds>`.
+`timedprogression.setthreshold <phase num> <threshold minutes>` - Set the threshold for phase `<phase num>` to `<minutes>`.
 
 `timedprogression.setphase <phase num>` - Set the current phase to `<phase num>`.
 
@@ -93,9 +95,7 @@ For example, the thompson (`smg.thompson`) is unlocked in phase 2, which is reac
 
 # Considerations
 
-`TimedProgression` uses your server's configured timezone for determining the daily and weekly cycle start times. Be sure your server's timezone is configured how you desire. If you update your server's timezone, you can reload the plugin to have it sync with your new timezone as well.
-
-When a new map is discovered during server intitialization, the current time is saved as the wipe start time. Every second it calculates the difference between the current time and the wipe start time to determine how many seconds have elapsed for the current wipe period. If, for any reason, you wish to change the wipe start time, you can use `timedprogression.setwipetime` command.
+When a new map is discovered during server intitialization, the current time is saved as the wipe start time. Every minute it calculates the difference between the current time and the wipe start time to determine how many minutes have elapsed for the current wipe period. If, for any reason, you wish to change the wipe start time, you can use `timedprogression.setwipetime` command.
 
 # Optional Plugins
 [GUIAnnouncements](https://umod.org/plugins/gui-announcements) - Will be used to warn the player when they try to craft a locked item and to announce to players when the phase changes.

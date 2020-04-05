@@ -29,7 +29,7 @@ The configuration file contains the following settings:
 
 `thresholds` - An array of integers representing the number of minutes from the start of wipe before the next phase begins. The default values are `2880` and `5760`, which are 2 days, and 4 days, respectively. This means phase 2 begins after two days from wipe, and phase 3 after 4 days from wipe. You can configure more than two thresholds to add more phases to your wipe period.
 
-`botChannel` - The name of your Discord channel for the bot to listen and chat in, defaults to "bots".
+`botChannel` - The name of your Discord channel for the bot to listen and chat in, defaults to "bots" (requires [Discord Core](https://umod.org/plugins/discord-core)).
 
 The `items.json` file contains the more complex details of which items are restricted and their unlock phase. Below is the default configuration.
 ```

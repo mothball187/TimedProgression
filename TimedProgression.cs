@@ -54,76 +54,66 @@ namespace Oxide.Plugins
         [Command("timedprogression.setthreshold")]
         private void SetThreshold(IPlayer player, string command, string[] args)
         {
-            if(player.IsAdmin)
+            if(!player.IsAdmin)
+                return;
+
+            Int32 phase;
+            if(!Int32.TryParse(args[0], out phase))
             {
-                try{
-                    int phase = Int32.Parse(args[0]);
-                    int seconds = Int32.Parse(args[1]);
-                    config.thresholds[phase - 1] = seconds;
-                    SaveConfig();
-                    player.Message($"Threshold {phase} set to {seconds}");
-                }
-                catch{
-                    player.Message("Error handling setthreshold command");
-                }
+                player.Message(lang.GetMessage("SetThresholdError", this, player.Id));
+                return;
             }
-            else
+
+            Int32 minutes;
+            if(!Int32.TryParse(args[1], out minutes))
             {
-                player.Message("This command is restricted to admins only");
+                player.Message(lang.GetMessage("SetThresholdError", this, player.Id));
+                return;
             }
+
+            config.thresholds[phase - 1] = minutes;
+            SaveConfig();
+            player.Message(string.Format(lang.GetMessage("SetThreshold", this, player.Id), phase, minutes));
         }
 
         [Command("timedprogression.setphase")]
         private void SetPhase(IPlayer player, string command, string[] args)
         {
-            if(player.IsAdmin)
+            if(!player.IsAdmin)
+                return;
+
+            Int32 phase;
+            if(!Int32.TryParse(args[0], out phase))
             {
-                try{
-                    int phase = Int32.Parse(args[0]);
-                    timeData["currentPhase"] = phase;
-                    timeData.Save();
-                    //RefreshLoot();
-                    //CheckAllLoot();
-                    RefreshVendingMachines();
-                    player.Message($"Phase set to {phase}");
-                    NotifyPhaseChange();
-                }
-                catch{
-                    player.Message("Error handling setphase command");
-                }
+                player.Message(lang.GetMessage("SetPhaseError", this, player.Id));
+                return;
             }
-            else
-            {
-                player.Message("This command is restricted to admins only");
-            }
+
+            timeData["currentPhase"] = phase;
+            timeData.Save();
+            RefreshVendingMachines();
+            player.Message(string.Format(lang.GetMessage("SetPhase", this, player.Id), phase));
+            NotifyPhaseChange();
         }
 
 
         [Command("timedprogression.setwipetime")]
         private void SetWipeTime(IPlayer player, string command, string[] args)
         {
-            if(player.IsAdmin)
+            if(!player.IsAdmin)
+                return;
+
+            string dateString = args[0];
+            DateTime dt;
+            if(!DateTime.TryParse(dateString, out dt))
             {
-                try{
-                    string dateString = args[0];
-                    DateTime dt;
-                    if(DateTime.TryParse(dateString, out dt))
-                    {
-                        player.Message($"Wipe time set to {dt}");
-                        timeData["wipeTime"] = dateString;
-                        timeData.Save();
-                    }
-                    else
-                        player.Message($"Failed to parse supplied date string {dateString}");
-                }
-                catch{
-                    player.Message("Error handling setwipetime command");
-                }
+                player.Message(string.Format(lang.GetMessage("SetWipeTimeError", this, player.Id), dateString));
+                return;
             }
-            else
-            {
-                player.Message("This command is restricted to admins only");
-            }
+
+            player.Message(string.Format(lang.GetMessage("SetWipeTime", this, player.Id), dt));
+            timeData["wipeTime"] = dateString;
+            timeData.Save();
         }
 
 
@@ -135,6 +125,7 @@ namespace Oxide.Plugins
         class PluginConfig
         {
             public List<long> thresholds;
+            public string botChannel;
         }
 
         protected void LoadDefaultItemsConfig()
@@ -186,8 +177,9 @@ namespace Oxide.Plugins
         {
             config = new PluginConfig();
             config.thresholds = new List<long>();
-            config.thresholds.Add(60 * 60 * 48); // 2 days
-            config.thresholds.Add(60 * 60 * 96); // 4 days
+            config.thresholds.Add(60 * 24 * 2); // 2 days
+            config.thresholds.Add(60 * 24 * 4); // 4 days
+            config.botChannel = "bots";
             SaveConfig();
         }
 
@@ -200,21 +192,24 @@ namespace Oxide.Plugins
 
         #region Oxide Hooks
 
-        /*
-        private void OnEntityKill(BaseNetworkable entity)
+        protected override void LoadDefaultMessages()
         {
-            BaseEntity baseEnt = entity as BaseEntity;
-            if (baseEnt == null) return;
-            if (entity.GetComponent<LootContainer>())
+            lang.RegisterMessages(new Dictionary<string, string>
             {
-                UpdateContainer(entity.GetComponent<LootContainer>());
-            }
-            else if (entity.GetComponent<StorageContainer>())
-            {
-                UpdateContainer(entity.GetComponent<StorageContainer>());
-            }
+                ["SetThresholdError"] = "Error handling setthreshold command",
+                ["SetThreshold"] = "Threshold {0} set to {1}",
+                ["SetPhaseError"] = "Error handling setphase command",
+                ["SetPhase"] = "Phase set to {0}",
+                ["SetWipeTimeError"] = "Failed to parse supplied date string {0}",
+                ["SetWipeTime"] = "Wipe time set to {0}",
+                ["NotifyPlayer"] = "{0} is currently locked!",
+                ["PhaseInfo1"] = "Current phase: {0}",
+                ["PhaseInfo2"] = "Time left in this phase: {0}",
+                ["ListItems"] = "{0} unlocks in phase {1}, in {2}",
+                ["AllUnlocked"] = "All items unlocked!",
+                ["NotifyPhaseChange"] = "ATTENTION: PHASE {0} HAS BEGUN"
+            }, this);
         }
-        */
 
         private void OnNewSave(string filename)
         {
@@ -228,17 +223,9 @@ namespace Oxide.Plugins
             UpdateContainer(entity);
         }
 
-        /*
-        private object OnLootSpawn(LootContainer container)
-        {
-            return UpdateContainer(container);
-        }
-        */
-        
-
         private void NotifyPlayer(ItemDefinition itemdef, BasePlayer player)
         {
-            string msg = $"{itemdef.displayName.english} is currently locked!";
+            string msg = string.Format(lang.GetMessage("NotifyPlayer", this, player.UserIDString), itemdef.displayName.english);
             player.ChatMessage(msg);
             if(GUIAnnouncements != null)
                 GUIAnnouncements?.Call("CreateAnnouncement", msg, "Purple", "Yellow", player);
@@ -258,29 +245,29 @@ namespace Oxide.Plugins
         private void NotifyPhaseInfo(IPlayer player)
         {
             int cp = (int)timeData["currentPhase"];
-            player.Message($"Current phase: {cp}");
-            if(cp - 1 < config.thresholds.Count)
-            {
-                DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
-                TimeSpan elapsed = DateTime.Now - wt;
-                string timeLeft = FormatTimeSpan(config.thresholds[cp - 1] - (long)elapsed.TotalSeconds);
-                player.Message($"Time left in this phase: {timeLeft}");
-            }
+            player.Message(string.Format(lang.GetMessage("PhaseInfo1", this, player.Id), cp));
+            if(cp - 1 >= config.thresholds.Count)
+                return;
+
+            DateTime wt = DateTime.Parse((string)timeData["wipeTime"]);
+            TimeSpan elapsed = DateTime.Now - wt;
+            string timeLeft = FormatTimeSpan(config.thresholds[cp - 1] - (long)elapsed.TotalMinutes);
+            player.Message(string.Format(lang.GetMessage("PhaseInfo2", this, player.Id), timeLeft));
         }
 
         private object OnVendingTransaction(VendingMachine machine, BasePlayer buyer, int sellOrderId, int numberOfTransactions)
         {
             ProtoBuf.VendingMachine.SellOrder sellOrder = machine.sellOrders.sellOrders[sellOrderId];
             List<global::Item> list = machine.inventory.FindItemsByItemID(sellOrder.itemToSellID);
-            if (list != null && list.Count > 0)
-            {
-                if(!CanHaveItem(list[0].info))
-                {
-                    if(buyer != null)
-                        NotifyPlayer(list[0].info, buyer);
+            if (list == null && list.Count == 0)
+                return null;
 
-                    return false;
-                }
+            if(!CanHaveItem(list[0].info))
+            {
+                if(buyer != null)
+                    NotifyPlayer(list[0].info, buyer);
+
+                return false;
             }
 
             return null;
@@ -291,11 +278,6 @@ namespace Oxide.Plugins
             NotifyPhaseInfo(player.IPlayer);
         }
 
-        private void Unload()
-        {
-            return;
-        }
-
         private void OnServerInitialized()
         {
             if(DiscordCore != null)
@@ -303,6 +285,27 @@ namespace Oxide.Plugins
         }
 
         #endregion Oxide Hooks
+
+        private void BuildPhaseItemsStrings(Dictionary<string, object> catItems, ref Dictionary<int, string> phaseItems)
+        {
+            foreach(string name in catItems.Keys)
+            {
+                int phase = (int)catItems[name];
+                if(phase < 2)
+                    continue;
+
+                ItemDefinition itemdef = ItemManager.FindItemDefinition(name);
+                string fullname = itemdef.displayName.english;
+                string phaseString = "";
+                if(phaseItems.TryGetValue(phase, out phaseString))
+                {
+                    phaseString += $", {fullname}";
+                    phaseItems[phase] = phaseString;
+                }
+                else
+                    phaseItems[phase] = fullname;
+            }
+        }
 
         private void ListItems(IPlayer player=null, string channelId=null)
         {
@@ -315,45 +318,13 @@ namespace Oxide.Plugins
                     continue;
 
                 Dictionary<string, object> catItems = items[category.ToString("f")] as Dictionary<string, object>;
-                foreach(string name in catItems.Keys)
-                {
-                    int phase = (int)catItems[name];
-                    if(phase < 2)
-                        continue;
-
-                    ItemDefinition itemdef = ItemManager.FindItemDefinition(name);
-                    string fullname = itemdef.displayName.english;
-                    string phaseString = "";
-                    if(phaseItems.TryGetValue(phase, out phaseString))
-                    {
-                        phaseString += $", {fullname}";
-                        phaseItems[phase] = phaseString;
-                    }
-                    else
-                        phaseItems[phase] = $"{fullname}";
-                }
+                BuildPhaseItemsStrings(catItems, ref phaseItems);
             }
 
             if(items["HeavyAmmo"] != null)
             {
-                 Dictionary<string, object> catItems = items["HeavyAmmo"] as Dictionary<string, object>;
-                foreach(string name in catItems.Keys)
-                {
-                    int phase = (int)catItems[name];
-                    if(phase < 2)
-                        continue;
-
-                    ItemDefinition itemdef = ItemManager.FindItemDefinition(name);
-                    string fullname = itemdef.displayName.english;
-                    string phaseString = "";
-                    if(phaseItems.TryGetValue(phase, out phaseString))
-                    {
-                        phaseString += $", {fullname}";
-                        phaseItems[phase] = phaseString;
-                    }
-                    else
-                        phaseItems[phase] = $"{fullname}";
-                }
+                Dictionary<string, object> catItems = items["HeavyAmmo"] as Dictionary<string, object>;
+                BuildPhaseItemsStrings(catItems, ref phaseItems);
             } 
 
             bool messageSent = false;
@@ -362,11 +333,11 @@ namespace Oxide.Plugins
                 if(cp < phase)
                 {
                     TimeSpan elapsed = DateTime.Now - wt;
-                    string timeLeft = FormatTimeSpan(config.thresholds[phase - 2] - (long)elapsed.TotalSeconds);
+                    string timeLeft = FormatTimeSpan(config.thresholds[phase - 2] - (long)elapsed.TotalMinutes);
                     if(player != null)
-                        player.Message($"{phaseItems[phase]} unlocks in phase {phase}, in {timeLeft}");
+                        player.Message(string.Format(lang.GetMessage("ListItems", this, player.Id), phaseItems[phase], phase, timeLeft));
                     else if(DiscordCore != null && channelId != null)
-                        SendMessage(channelId, $"{phaseItems[phase]} unlocks in phase {phase}, in {timeLeft}");
+                        SendMessage(channelId, string.Format(lang.GetMessage("ListItems", this, player.Id), phaseItems[phase], phase, timeLeft));
                     messageSent = true;
                 }
             }
@@ -374,9 +345,9 @@ namespace Oxide.Plugins
             if(!messageSent)
             {
                 if(player != null)
-                    player.Message("All items unlocked!");
+                    player.Message(lang.GetMessage("AllUnlocked", this, player.Id));
                 else if(DiscordCore != null && channelId != null)
-                    SendMessage(channelId, "All items unlocked!");
+                    SendMessage(channelId, lang.GetMessage("AllUnlocked", this, player.Id));
             }
         }
 
@@ -401,14 +372,13 @@ namespace Oxide.Plugins
             DiscordCore.Call("RegisterCommand", "listitems", this, new Func<IPlayer, string, string, string[], object>(HandleListItems), "Show next items to unlock", null, true);
         }
 
-        private string FormatTimeSpan(long seconds)
+        private string FormatTimeSpan(long minutes)
         {
-            TimeSpan t = TimeSpan.FromSeconds( seconds );
-            string answer = string.Format("{0:D2}d:{1:D2}h:{2:D2}m:{3:D2}s",
+            TimeSpan t = TimeSpan.FromMinutes( minutes );
+            string answer = string.Format("{0:D2}d:{1:D2}h:{2:D2}m",
                 t.Days, 
                 t.Hours, 
-                t.Minutes, 
-                t.Seconds);
+                t.Minutes);
             return answer;
         }
 
@@ -455,13 +425,13 @@ namespace Oxide.Plugins
 
             if(itemPool.Count == 0)
             {
-                Puts($"Couldn't find replacement for {itemdef.shortname}");
+                //Puts($"Couldn't find replacement for {itemdef.shortname}");
                 return null;
             }
 
             int r = rnd.Next(itemPool.Count);
             Item newItem = ItemManager.CreateByName(itemPool[r], amount);
-            Puts($"Replacing {itemdef.shortname} with {newItem.info.shortname}");
+            //Puts($"Replacing {itemdef.shortname} with {newItem.info.shortname}");
             return newItem;
         }
 
@@ -498,7 +468,7 @@ namespace Oxide.Plugins
             }
             else
             {
-                Puts($"Unhandled type: {container.GetType()}");
+                //Puts($"Unhandled type: {container.GetType()}");
                 return null;
             }
             
@@ -536,33 +506,6 @@ namespace Oxide.Plugins
             return null;
         }
 
-        private void CheckAllLoot()
-        {
-            var spawns = Resources.FindObjectsOfTypeAll<LootContainer>().Where(c => c.isActiveAndEnabled).ToList();
-
-            var count = spawns.Count();
-            var check = 0;
-            Puts($"Checking {count} LootContainers");
-            for (var i = 0; i < count; i++)
-            {
-                var box = spawns[i];
-                check++;
-                UpdateContainer(box);
-            }
-
-            Puts($"Checked {check} LootContainers");
-        }
-
-        private void RefreshLoot()
-        {
-            server.Command("del assets/bundled/prefabs/radtown/");
-            timer.Once(5f, () =>
-            {
-                server.Command("spawn.fill_groups"); // this also respawns bad guys which is bad
-            });
-            
-        }
-
         // in case the user puts rockets in the Ammunition category
         private void FixHeavyAmmoCategory()
         {
@@ -598,11 +541,7 @@ namespace Oxide.Plugins
             if(timeData["wipeTime"] == null)
                 timeData["wipeTime"] = DateTime.Now.ToString();
 
-            //RefreshLoot();
-            //CheckAllLoot();
-            timer.Every(1f, UpdateLoop);
-            timer.Every(10f, SaveLoop);
-
+            timer.Every(60f, UpdateLoop);
             RefreshVendingMachines();
             return;
         }
@@ -613,33 +552,37 @@ namespace Oxide.Plugins
                 return;
 
             TimeSpan elapsed = DateTime.Now - DateTime.Parse((string)timeData["wipeTime"]);
-            //Puts($"{elapsed} seconds since wipe");
-            if(elapsed.TotalSeconds >= config.thresholds[(int)timeData["currentPhase"] - 1])
+            if(elapsed.TotalMinutes >= config.thresholds[(int)timeData["currentPhase"] - 1])
             {
                 timeData["currentPhase"] = (int)timeData["currentPhase"] + 1;
-                //RefreshLoot();
                 NotifyPhaseChange();
                 RefreshVendingMachines();
             }
         }
 
-        private void SaveLoop()
+        private void Unload()
+        {
+            timeData.Save();
+        }
+
+        private void OnServerSave()
         {
             timeData.Save();
         }
 
         private void NotifyPhaseChange()
         {
-            string msg = $"ATTENTION: PHASE {(int)timeData["currentPhase"]} HAS BEGUN";
+            string msg;
             foreach (var player in BasePlayer.activePlayerList)
             {
+                msg = string.Format(lang.GetMessage("NotifyPhaseChange", this, player.UserIDString), (int)timeData["currentPhase"]);
                 player.ChatMessage(msg);
                 if(GUIAnnouncements != null)
                     GUIAnnouncements?.Call("CreateAnnouncement", msg, "Purple", "Yellow", player);
             }
 
             if(DiscordCore != null)
-                SendMessage("bots", msg);
+                SendMessage(config.botChannel, $"ATTENTION: PHASE {(int)timeData["currentPhase"]} HAS BEGUN");
         }
 
         private void RefreshVendingMachines()

@@ -337,7 +337,7 @@ namespace Oxide.Plugins
                     if(player != null)
                         player.Message(string.Format(lang.GetMessage("ListItems", this, player.Id), phaseItems[phase], phase, timeLeft));
                     else if(DiscordCore != null && channelId != null)
-                        SendMessage(channelId, string.Format(lang.GetMessage("ListItems", this, player.Id), phaseItems[phase], phase, timeLeft));
+                        SendMessage(channelId, string.Format("{0} unlocks in phase {1}, in {2}", phaseItems[phase], phase, timeLeft));
                     messageSent = true;
                 }
             }
@@ -347,7 +347,7 @@ namespace Oxide.Plugins
                 if(player != null)
                     player.Message(lang.GetMessage("AllUnlocked", this, player.Id));
                 else if(DiscordCore != null && channelId != null)
-                    SendMessage(channelId, lang.GetMessage("AllUnlocked", this, player.Id));
+                    SendMessage(channelId, "All items unlocked!");
             }
         }
 

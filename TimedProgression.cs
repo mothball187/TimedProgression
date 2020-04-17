@@ -21,7 +21,7 @@ using Oxide.Core.Libraries.Covalence;
 
 namespace Oxide.Plugins
 {
-    [Info("Timed Progression", "mothball187", "0.0.3")]
+    [Info("Timed Progression", "mothball187", "0.0.5")]
     [Description("Restricts crafting and looting of items based on configurable tiers, unlocked over configurable time periods")]
     class TimedProgression : CovalencePlugin
     {
@@ -55,44 +55,51 @@ namespace Oxide.Plugins
         private void SetThreshold(IPlayer player, string command, string[] args)
         {
             if(!player.IsAdmin)
+            {
+                player.Reply(lang.GetMessage("NotAdmin", this, player.Id));
                 return;
+            }
 
             Int32 phase;
             if(!Int32.TryParse(args[0], out phase))
             {
-                player.Message(lang.GetMessage("SetThresholdError", this, player.Id));
+                player.Reply(lang.GetMessage("SetThresholdError", this, player.Id));
                 return;
             }
 
             Int32 minutes;
             if(!Int32.TryParse(args[1], out minutes))
             {
-                player.Message(lang.GetMessage("SetThresholdError", this, player.Id));
+                player.Reply(lang.GetMessage("SetThresholdError", this, player.Id));
                 return;
             }
 
             config.thresholds[phase - 1] = minutes;
             SaveConfig();
-            player.Message(string.Format(lang.GetMessage("SetThreshold", this, player.Id), phase, minutes));
+            player.Reply(string.Format(lang.GetMessage("SetThreshold", this, player.Id), phase, minutes));
         }
 
         [Command("timedprogression.setphase")]
         private void SetPhase(IPlayer player, string command, string[] args)
         {
             if(!player.IsAdmin)
+            {
+                player.Reply(lang.GetMessage("NotAdmin", this, player.Id));
                 return;
+            }
 
             Int32 phase;
             if(!Int32.TryParse(args[0], out phase))
             {
-                player.Message(lang.GetMessage("SetPhaseError", this, player.Id));
+                player.Reply(lang.GetMessage("SetPhaseError", this, player.Id));
                 return;
             }
 
             timeData["currentPhase"] = phase;
             timeData.Save();
+
             RefreshVendingMachines();
-            player.Message(string.Format(lang.GetMessage("SetPhase", this, player.Id), phase));
+            player.Reply(string.Format(lang.GetMessage("SetPhase", this, player.Id), phase));
             NotifyPhaseChange();
         }
 
@@ -101,17 +108,20 @@ namespace Oxide.Plugins
         private void SetWipeTime(IPlayer player, string command, string[] args)
         {
             if(!player.IsAdmin)
+            {
+                player.Reply(lang.GetMessage("NotAdmin", this, player.Id));
                 return;
+            }
 
             string dateString = args[0];
             DateTime dt;
             if(!DateTime.TryParse(dateString, out dt))
             {
-                player.Message(string.Format(lang.GetMessage("SetWipeTimeError", this, player.Id), dateString));
+                player.Reply(string.Format(lang.GetMessage("SetWipeTimeError", this, player.Id), dateString));
                 return;
             }
 
-            player.Message(string.Format(lang.GetMessage("SetWipeTime", this, player.Id), dt));
+            player.Reply(string.Format(lang.GetMessage("SetWipeTime", this, player.Id), dt));
             timeData["wipeTime"] = dateString;
             timeData.Save();
         }
@@ -207,7 +217,8 @@ namespace Oxide.Plugins
                 ["PhaseInfo2"] = "Time left in this phase: {0}",
                 ["ListItems"] = "{0} unlocks in phase {1}, in {2}",
                 ["AllUnlocked"] = "All items unlocked!",
-                ["NotifyPhaseChange"] = "ATTENTION: PHASE {0} HAS BEGUN"
+                ["NotifyPhaseChange"] = "ATTENTION: PHASE {0} HAS BEGUN",
+                ["NotAdmin"] = "You must be an admin to use this command."
             }, this);
         }
 
@@ -229,6 +240,53 @@ namespace Oxide.Plugins
             player.ChatMessage(msg);
             if(GUIAnnouncements != null)
                 GUIAnnouncements?.Call("CreateAnnouncement", msg, "Purple", "Yellow", player);
+        }
+
+        /*
+        private object CanWearItem(PlayerInventory inventory, Item item, int targetSlot)
+        {
+            BasePlayer player = inventory.GetComponent<BasePlayer>();
+            if(player is NPCPlayer || player is HTNPlayer)
+                return null;
+
+            if(!CanHaveItem(item.info))
+            {
+                DestroyItem(item, inventory);
+                NotifyPlayer(item.info, player);
+                return false;
+            }
+            return null;
+        }
+
+        private object CanEquipItem(PlayerInventory inventory, Item item, int targetPos)
+        {
+            BasePlayer player = inventory.GetComponent<BasePlayer>();
+            if(player is NPCPlayer | player is HTNPlayer)
+                return null;
+
+            if(!CanHaveItem(item.info))
+            {
+                DestroyItem(item, inventory);
+                NotifyPlayer(item.info, player);
+                return false;
+            }
+            return null;
+        }
+        */
+
+        private ItemContainer.CanAcceptResult? CanAcceptItem(ItemContainer container, Item item, int targetPos)
+        {
+            BasePlayer player = container.GetOwnerPlayer();
+            if(player == null || player is NPCPlayer || player is HTNPlayer)
+                return null;
+
+            if(CanHaveItem(item.info))
+                return null;
+
+            Item itemToAdd = ReplaceItem(item.info, item.amount);
+            itemToAdd.MoveToContainer(container, -1, false);
+            item.Remove(0f);
+            return ItemContainer.CanAcceptResult.CannotAccept;
         }
 
         private object CanCraft(ItemCrafter itemCrafter, ItemBlueprint bp, int amount)
@@ -399,6 +457,15 @@ namespace Oxide.Plugins
             return true;
         }
 
+        private void DestroyItem(Item item, PlayerInventory inventory)
+        {
+            item.RemoveFromContainer();
+            item.Remove(0f);
+            inventory.GetContainer(PlayerInventory.Type.Main).MarkDirty();
+            //(inventory as BaseEntity).SendNetworkUpdate();
+            ItemManager.DoRemoves();
+        }
+
         private Item ReplaceItem(ItemDefinition itemdef, int amount)
         {
             List<string> itemPool = new List<string>();
@@ -542,7 +609,11 @@ namespace Oxide.Plugins
                 timeData["wipeTime"] = DateTime.Now.ToString();
 
             timer.Every(60f, UpdateLoop);
-            RefreshVendingMachines();
+            timer.Once(150f, () =>
+            {
+                RefreshVendingMachines();
+            });
+            
             return;
         }
 

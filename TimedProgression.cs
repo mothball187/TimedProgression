@@ -22,7 +22,7 @@ using System.Text;
 
 namespace Oxide.Plugins
 {
-    [Info("Timed Progression", "mothball187", "0.0.6")]
+    [Info("Timed Progression", "mothball187", "0.0.7")]
     [Description("Restricts crafting and looting of items based on configurable tiers, unlocked over configurable time periods")]
     class TimedProgression : CovalencePlugin
     {
@@ -369,9 +369,12 @@ namespace Oxide.Plugins
                 string fullname = itemdef.displayName.english;
                 StringBuilder sb;
                 if(phaseItems.TryGetValue(phase, out sb))
-                    sb.Append($", {fullname}");
+                {
+                    sb.Append(", ");
+                    sb.Append(fullname);
+                }
                 else
-                    phaseItems[phase] = new StringBuilder(fullname, 1024);
+                    phaseItems[phase] = new StringBuilder(fullname);
             }
 
         }
@@ -386,15 +389,11 @@ namespace Oxide.Plugins
                 if(items[category.ToString("f")] == null)
                     continue;
 
-                Dictionary<string, object> catItems = items[category.ToString("f")] as Dictionary<string, object>;
-                BuildPhaseItemsStrings(catItems, ref phaseItems);
+                BuildPhaseItemsStrings(items[category.ToString("f")] as Dictionary<string, object>, ref phaseItems);
             }
 
             if(items["HeavyAmmo"] != null)
-            {
-                Dictionary<string, object> catItems = items["HeavyAmmo"] as Dictionary<string, object>;
-                BuildPhaseItemsStrings(catItems, ref phaseItems);
-            } 
+                BuildPhaseItemsStrings(items["HeavyAmmo"] as Dictionary<string, object>, ref phaseItems);
 
             bool messageSent = false;
             foreach(int phase in phaseItems.Keys)
@@ -406,7 +405,7 @@ namespace Oxide.Plugins
                     if(player != null)
                         player.Message(string.Format(lang.GetMessage("ListItems", this, player.Id), phaseItems[phase].ToString(), phase, timeLeft));
                     else if(DiscordCore != null && channelId != null)
-                        SendMessage(channelId, string.Format("{0} unlocks in phase {1}, in {2}", phaseItems[phase].ToString(), phase, timeLeft));
+                        SendMessage(channelId, string.Format(lang.GetMessage("ListItems", this), phaseItems[phase].ToString(), phase, timeLeft));
                     messageSent = true;
                 }
             }
@@ -416,7 +415,7 @@ namespace Oxide.Plugins
                 if(player != null)
                     player.Message(lang.GetMessage("AllUnlocked", this, player.Id));
                 else if(DiscordCore != null && channelId != null)
-                    SendMessage(channelId, "All items unlocked!");
+                    SendMessage(channelId, lang.GetMessage("AllUnlocked", this));
             }
         }
 
@@ -662,7 +661,7 @@ namespace Oxide.Plugins
             }
 
             if(DiscordCore != null)
-                SendMessage(config.botChannel, $"ATTENTION: PHASE {(int)timeData["currentPhase"]} HAS BEGUN");
+                SendMessage(config.botChannel, string.Format(lang.GetMessage("NotifyPhaseChange", this), (int)timeData["currentPhase"]));
         }
 
         private void RefreshVendingMachines()

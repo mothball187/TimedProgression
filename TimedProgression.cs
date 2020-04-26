@@ -22,7 +22,7 @@ using System.Text;
 
 namespace Oxide.Plugins
 {
-    [Info("Timed Progression", "mothball187", "0.0.7")]
+    [Info("Timed Progression", "mothball187", "0.0.8")]
     [Description("Restricts crafting and looting of items based on configurable tiers, unlocked over configurable time periods")]
     class TimedProgression : CovalencePlugin
     {
@@ -61,6 +61,12 @@ namespace Oxide.Plugins
                 return;
             }
 
+            if(args.Length < 2)
+            {
+                player.Reply(lang.GetMessage("SetThresholdError", this, player.Id));
+                return;
+            }
+
             Int32 phase;
             if(!Int32.TryParse(args[0], out phase))
             {
@@ -89,6 +95,12 @@ namespace Oxide.Plugins
                 return;
             }
 
+            if(args.Length < 1)
+            {
+                player.Reply(lang.GetMessage("SetPhaseError", this, player.Id));
+                return;
+            }
+
             Int32 phase;
             if(!Int32.TryParse(args[0], out phase))
             {
@@ -111,6 +123,12 @@ namespace Oxide.Plugins
             if(!player.IsAdmin)
             {
                 player.Reply(lang.GetMessage("NotAdmin", this, player.Id));
+                return;
+            }
+
+            if(args.Length < 1)
+            {
+                player.Reply(lang.GetMessage("SetWipeTimeError", this, player.Id));
                 return;
             }
 
@@ -191,10 +209,9 @@ namespace Oxide.Plugins
             config.thresholds.Add(60 * 24 * 2); // 2 days
             config.thresholds.Add(60 * 24 * 4); // 4 days
             config.botChannel = "bots";
-            SaveConfig();
         }
 
-        private void SaveConfig()
+        protected override void SaveConfig()
         {
             Config.WriteObject(config, true);
         }
@@ -219,7 +236,8 @@ namespace Oxide.Plugins
                 ["ListItems"] = "{0} unlocks in phase {1}, in {2}",
                 ["AllUnlocked"] = "All items unlocked!",
                 ["NotifyPhaseChange"] = "ATTENTION: PHASE {0} HAS BEGUN",
-                ["NotAdmin"] = "You must be an admin to use this command."
+                ["NotAdmin"] = "You must be an admin to use this command.",
+                ["ConfigError"] = "Failed to load config file (is the config file corrupt?) ({0})"
             }, this);
         }
 
@@ -283,8 +301,7 @@ namespace Oxide.Plugins
             if(CanHaveItem(item.info))
                 return null;
 
-            Item itemToAdd = ReplaceItem(item.info, item.amount);
-            itemToAdd.MoveToContainer(container, -1, false);
+            ReplaceItem(item.info, item.amount).MoveToContainer(container, -1, false);
             item.Remove(0f);
             return ItemContainer.CanAcceptResult.CannotAccept;
         }
@@ -366,15 +383,14 @@ namespace Oxide.Plugins
                 if(itemdef == null)
                     continue;
 
-                string fullname = itemdef.displayName.english;
                 StringBuilder sb;
                 if(phaseItems.TryGetValue(phase, out sb))
                 {
                     sb.Append(", ");
-                    sb.Append(fullname);
+                    sb.Append(itemdef.displayName.english);
                 }
                 else
-                    phaseItems[phase] = new StringBuilder(fullname);
+                    phaseItems[phase] = new StringBuilder(itemdef.displayName.english);
             }
 
         }
@@ -448,10 +464,15 @@ namespace Oxide.Plugins
             return answer;
         }
 
+        private bool ItemIsHeavyAmmo(ItemDefinition itemdef)
+        {
+            return (itemdef.category == ItemCategory.Ammunition && (itemdef.shortname.Contains("rocket") || itemdef.shortname.Contains("grenade")));
+        }
+
         private bool CanHaveItem(ItemDefinition itemdef)
         {
             string itemCategory;
-            if(itemdef.category == ItemCategory.Ammunition && (itemdef.shortname.Contains("rocket") || itemdef.shortname.Contains("grenade")))
+            if(ItemIsHeavyAmmo(itemdef))
                 itemCategory = "HeavyAmmo";
             else
                 itemCategory = itemdef.category.ToString("f");
@@ -478,7 +499,7 @@ namespace Oxide.Plugins
         {
             List<string> itemPool = new List<string>();
             string cat;
-            if(itemdef.category.ToString("f").Equals("Ammunition") && (itemdef.shortname.Contains("rocket") || itemdef.shortname.Contains("grenade")))
+            if(ItemIsHeavyAmmo(itemdef))
                 cat = "HeavyAmmo";
             else
                 cat = itemdef.category.ToString("f");
@@ -488,10 +509,8 @@ namespace Oxide.Plugins
             while(currentPhase >= 1 && itemPool.Count == 0)
             {
                 foreach(string name in catItems.Keys)
-                {
-                    int curItemPhase = (int)items[cat, name];
-                    
-                    if(curItemPhase == currentPhase)
+                {                    
+                    if((int)items[cat, name] == currentPhase)
                         itemPool.Add(name);
                 }
 
@@ -504,17 +523,12 @@ namespace Oxide.Plugins
                 return null;
             }
 
-            int r = rnd.Next(itemPool.Count);
-            Item newItem = ItemManager.CreateByName(itemPool[r], amount);
             //Puts($"Replacing {itemdef.shortname} with {newItem.info.shortname}");
-            return newItem;
+            return ItemManager.CreateByName(itemPool[rnd.Next(itemPool.Count)], amount);
         }
 
-        private object UpdateContainer(BaseEntity container)
+        private void UpdateContainer(BaseEntity container)
         {
-            bool updated = false;
-            List<Item> itemsToRemove = new List<Item>();
-            List<Item> itemsToAdd = new List<Item>();
             ItemContainer inventory = null;
 
             if (container is LootContainer)
@@ -544,9 +558,13 @@ namespace Oxide.Plugins
             else
             {
                 //Puts($"Unhandled type: {container.GetType()}");
-                return null;
+                return;
             }
-            
+     
+            bool updated = false;
+            List<Item> itemsToRemove = new List<Item>();
+            List<Item> itemsToAdd = new List<Item>();
+
             foreach(Item item in inventory.itemList)
             {
                 if(!CanHaveItem(item.info))
@@ -576,9 +594,9 @@ namespace Oxide.Plugins
                 //inventory.MarkDirty();
                 container.SendNetworkUpdate();
                 //ItemManager.DoRemoves();
-                return true;
+                return;
             }
-            return null;
+            return;
         }
 
         // in case the user puts rockets in the Ammunition category
@@ -598,10 +616,29 @@ namespace Oxide.Plugins
             items.Save();
         }
 
+        protected override void LoadConfig()
+        {
+            base.LoadConfig();
+            if (!Config.Exists())
+                LoadDefaultConfig();
+            else
+            {
+                try
+                {
+                    config = Config.ReadObject<PluginConfig>();
+                }
+                catch (Exception ex)
+                {
+                    RaiseError(string.Format(lang.GetMessage("ConfigError", this), ex.Message));
+                }
+            }
+
+            SaveConfig();
+        }
+
         private void Init()
         {
             TimeZoneInfo.ClearCachedData();
-            config = Config.ReadObject<PluginConfig>();
             timeData = Interface.Oxide.DataFileSystem.GetDatafile("TimedProgression/timeData");
             items = Interface.Oxide.DataFileSystem.GetDatafile("TimedProgression/items");
             if(items["Weapon"] == null)
@@ -630,8 +667,7 @@ namespace Oxide.Plugins
             if((int)timeData["currentPhase"] - 1 == config.thresholds.Count)
                 return;
 
-            TimeSpan elapsed = DateTime.Now - DateTime.Parse((string)timeData["wipeTime"]);
-            if(elapsed.TotalMinutes < config.thresholds[(int)timeData["currentPhase"] - 1])
+            if((DateTime.Now - DateTime.Parse((string)timeData["wipeTime"])).TotalMinutes < config.thresholds[(int)timeData["currentPhase"] - 1])
                 return;
 
             timeData["currentPhase"] = (int)timeData["currentPhase"] + 1;
@@ -666,7 +702,7 @@ namespace Oxide.Plugins
 
         private void RefreshVendingMachines()
         {
-            foreach(var entity in BaseNetworkable.serverEntities.ToList())
+            foreach(var entity in BaseNetworkable.serverEntities)
             {
                 if (entity is NPCVendingMachine)
                 {

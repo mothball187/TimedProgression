@@ -22,7 +22,7 @@ using System.Text;
 
 namespace Oxide.Plugins
 {
-    [Info("Timed Progression", "mothball187", "0.0.8")]
+    [Info("Timed Progression", "mothball187", "0.1.1")]
     [Description("Restricts crafting and looting of items based on configurable tiers, unlocked over configurable time periods")]
     class TimedProgression : CovalencePlugin
     {
@@ -49,15 +49,15 @@ namespace Oxide.Plugins
         [Command("listitems")]
         private void ListItemsCmd(IPlayer player, string command, string[] args)
         {
-            ListItems(player=player);
+            ListItems(player: player);
         }
 
         [Command("timedprogression.setthreshold")]
         private void SetThreshold(IPlayer player, string command, string[] args)
         {
-            if(!player.IsAdmin)
+            if(!player.HasPermission("timedprogression.configure"))
             {
-                player.Reply(lang.GetMessage("NotAdmin", this, player.Id));
+                player.Reply(lang.GetMessage("NeedPermission", this, player.Id));
                 return;
             }
 
@@ -89,9 +89,9 @@ namespace Oxide.Plugins
         [Command("timedprogression.setphase")]
         private void SetPhase(IPlayer player, string command, string[] args)
         {
-            if(!player.IsAdmin)
+            if(!player.HasPermission("timedprogression.configure"))
             {
-                player.Reply(lang.GetMessage("NotAdmin", this, player.Id));
+                player.Reply(lang.GetMessage("NeedPermission", this, player.Id));
                 return;
             }
 
@@ -120,9 +120,9 @@ namespace Oxide.Plugins
         [Command("timedprogression.setwipetime")]
         private void SetWipeTime(IPlayer player, string command, string[] args)
         {
-            if(!player.IsAdmin)
+            if(!player.HasPermission("timedprogression.configure"))
             {
-                player.Reply(lang.GetMessage("NotAdmin", this, player.Id));
+                player.Reply(lang.GetMessage("NeedPermission", this, player.Id));
                 return;
             }
 
@@ -236,7 +236,7 @@ namespace Oxide.Plugins
                 ["ListItems"] = "{0} unlocks in phase {1}, in {2}",
                 ["AllUnlocked"] = "All items unlocked!",
                 ["NotifyPhaseChange"] = "ATTENTION: PHASE {0} HAS BEGUN",
-                ["NotAdmin"] = "You must be an admin to use this command.",
+                ["NeedPermission"] = "You must have the 'timedprogression.configure' permission to use this command.",
                 ["ConfigError"] = "Failed to load config file (is the config file corrupt?) ({0})"
             }, this);
         }
@@ -246,6 +246,7 @@ namespace Oxide.Plugins
             timeData["wipeTime"] = DateTime.Now.ToString();
             timeData["currentPhase"] = 1;
             timeData.Save();
+            timer.Once(150f, RefreshVendingMachines);  
         }
 
         private void OnLootEntity(BasePlayer player, BaseEntity entity)
@@ -442,7 +443,7 @@ namespace Oxide.Plugins
 
         private object HandleListItems(IPlayer player, string channelId, string cmd, string[] args)
         {
-            ListItems(player=null, channelId=channelId);
+            ListItems(channelId: channelId);
             return null;
         }
 
@@ -469,13 +470,20 @@ namespace Oxide.Plugins
             return (itemdef.category == ItemCategory.Ammunition && (itemdef.shortname.Contains("rocket") || itemdef.shortname.Contains("grenade")));
         }
 
-        private bool CanHaveItem(ItemDefinition itemdef)
+        private string GetCategoryString(ItemDefinition itemdef)
         {
             string itemCategory;
             if(ItemIsHeavyAmmo(itemdef))
                 itemCategory = "HeavyAmmo";
             else
                 itemCategory = itemdef.category.ToString("f");
+
+            return itemCategory;
+        }
+
+        private bool CanHaveItem(ItemDefinition itemdef)
+        {
+            string itemCategory = GetCategoryString(itemdef);
 
             //Puts($"{itemdef.shortname} is of the {itemCategory} category");
             if(items[itemCategory, itemdef.shortname] != null)
@@ -498,12 +506,8 @@ namespace Oxide.Plugins
         private Item ReplaceItem(ItemDefinition itemdef, int amount)
         {
             List<string> itemPool = new List<string>();
-            string cat;
-            if(ItemIsHeavyAmmo(itemdef))
-                cat = "HeavyAmmo";
-            else
-                cat = itemdef.category.ToString("f");
-
+            string cat = GetCategoryString(itemdef);
+            
             Dictionary<string, object> catItems = items[cat] as Dictionary<string, object>;
             int currentPhase = (int)timeData["currentPhase"];
             while(currentPhase >= 1 && itemPool.Count == 0)
@@ -583,8 +587,11 @@ namespace Oxide.Plugins
                 foreach(Item item in itemsToRemove)
                 {
                     //item.RemoveFromContainer();
-                    DestroyItem(item);
+                    //DestroyItem(item);
+                    item.Remove(0f);
                 }
+
+                ItemManager.DoRemoves();
 
                 foreach(Item item in itemsToAdd)
                 {
@@ -593,13 +600,12 @@ namespace Oxide.Plugins
 
                 //inventory.MarkDirty();
                 container.SendNetworkUpdate();
-                //ItemManager.DoRemoves();
                 return;
             }
             return;
         }
 
-        // in case the user puts rockets in the Ammunition category
+        // in case the user puts rockets/grenades in the Ammunition category
         private void FixHeavyAmmoCategory()
         {
             if(items["Ammunition"] == null)
@@ -607,12 +613,8 @@ namespace Oxide.Plugins
 
             Dictionary<string, object> ammoItems = items["Ammunition"] as Dictionary<string, object>;
             foreach(string shortname in ammoItems.Keys)
-            {
-                if(shortname.Contains("rocket"))
-                {
-                    items["HeavyAmmo", shortname] = items["Ammunition", shortname];
-                }
-            }
+                items[GetCategoryString(ItemManager.FindItemDefinition(shortname)), shortname] = items["Ammunition", shortname];
+
             items.Save();
         }
 
@@ -639,6 +641,7 @@ namespace Oxide.Plugins
         private void Init()
         {
             TimeZoneInfo.ClearCachedData();
+            permission.RegisterPermission("timedprogression.configure", this);
             timeData = Interface.Oxide.DataFileSystem.GetDatafile("TimedProgression/timeData");
             items = Interface.Oxide.DataFileSystem.GetDatafile("TimedProgression/items");
             if(items["Weapon"] == null)
@@ -656,10 +659,7 @@ namespace Oxide.Plugins
                 timeData["wipeTime"] = DateTime.Now.ToString();
 
             timer.Every(60f, UpdateLoop);
-            timer.Once(150f, () =>
-            {
-                RefreshVendingMachines();
-            });            
+            timer.Once(150f, RefreshVendingMachines);           
         }
 
         private void UpdateLoop()
@@ -721,8 +721,7 @@ namespace Oxide.Plugins
             ItemManager.DoRemoves();
             foreach(NPCVendingOrder.Entry entry in machine.vendingOrders.orders)
             {
-                ItemDefinition itemDef = ItemManager.FindItemDefinition(entry.sellItem.itemid);
-                if(CanHaveItem(itemDef))
+                if(CanHaveItem(ItemManager.FindItemDefinition(entry.sellItem.itemid)))
                     machine.AddItemForSale(entry.sellItem.itemid, entry.sellItemAmount, entry.currencyItem.itemid, 
                                            entry.currencyAmount, machine.GetBPState(entry.sellItemAsBP, entry.currencyAsBP));
             }

@@ -84,7 +84,9 @@ For example, the thompson (`smg.thompson`) is unlocked in phase 2, which is reac
 
 `/listitems` - Shows which items will unlock next phase.
 
-# Admin Commands
+# Console Commands
+
+In order to use these console commands, the user must have the Oxide permission `timedprogression.configure`.
 
 `timedprogression.setthreshold <phase num> <threshold minutes>` - Set the threshold for phase `<phase num>` to `<minutes>`.
 

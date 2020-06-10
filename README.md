@@ -112,4 +112,6 @@ Are you using, or planning to use, this plugin? Please let us know! We are inter
 
 Below are a list of servers using our plugin.
 
-**Working Man's Rust** - `connect 3.20.202.204:28015` - [Discord Invite](http://d.pilate.io/)
+**Working Man's Rust** - (retired)
+
+**Niflheim - Road to Hel [PVE][Zombies][Raidable Bases][Events]** - PVE with PVP only at raidable bases - 45.35.205.133:28045 - discord[.]gg/vukMc72 

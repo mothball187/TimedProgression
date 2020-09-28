@@ -22,7 +22,7 @@ using System.Text;
 
 namespace Oxide.Plugins
 {
-    [Info("Timed Progression", "mothball187", "0.1.1")]
+    [Info("Timed Progression", "mothball187", "0.1.2")]
     [Description("Restricts crafting and looting of items based on configurable tiers, unlocked over configurable time periods")]
     class TimedProgression : CovalencePlugin
     {
@@ -248,7 +248,7 @@ namespace Oxide.Plugins
             timeData.Save();
             timer.Once(150f, RefreshVendingMachines);  
         }
-
+		
         private void OnLootEntity(BasePlayer player, BaseEntity entity)
         {
             UpdateContainer(entity);
@@ -527,9 +527,15 @@ namespace Oxide.Plugins
                 return null;
             }
 
-            //Puts($"Replacing {itemdef.shortname} with {newItem.info.shortname}");
+            //Puts($"Replacing {itemdef.shortname}");
             return ItemManager.CreateByName(itemPool[rnd.Next(itemPool.Count)], amount);
         }
+		
+		void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
+		{
+			if(entity is LootContainer)
+				UpdateContainer(entity as BaseEntity);
+		}
 
         private void UpdateContainer(BaseEntity container)
         {
@@ -561,7 +567,7 @@ namespace Oxide.Plugins
             }
             else
             {
-                //Puts($"Unhandled type: {container.GetType()}");
+                Puts($"Unhandled type: {container.GetType()}");
                 return;
             }
      
@@ -610,8 +616,8 @@ namespace Oxide.Plugins
         {
             if(items["Ammunition"] == null)
                 return;
-
-            Dictionary<string, object> ammoItems = items["Ammunition"] as Dictionary<string, object>;
+			
+            Dictionary<string, object> ammoItems = new Dictionary<string, object>(items["Ammunition"] as Dictionary<string, object>);
             foreach(string shortname in ammoItems.Keys)
                 items[GetCategoryString(ItemManager.FindItemDefinition(shortname)), shortname] = items["Ammunition", shortname];
 
